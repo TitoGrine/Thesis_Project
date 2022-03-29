@@ -6,7 +6,7 @@ import math
 import numpy
 import tweepy
 
-from collector import Collector
+from extractor import Extractor
 from similarity import Scorer
 from multiprocessing import Pool
 from multiprocessing import freeze_support
@@ -29,7 +29,7 @@ themes_dict = {
 
 
 def extract_user_tweets_and_topics(twitter_handle, user):
-    coll = Collector(twitter_handle, user)
+    coll = Extractor(twitter_handle, user)
     coll.extract_tweets()
     # coll.get_topical_words()
     print(f"Extracted tweets from {twitter_handle}.")
@@ -77,7 +77,7 @@ def extract_all_tweets():
 
 def get_user_tweets_and_topics(twitter_handle, user=None):
     try:
-        coll = Collector(twitter_handle, user)
+        coll = Extractor(twitter_handle, user)
         coll.extract_tweets()
         coll.get_topical_words()
         print(f"Extracted topics from {twitter_handle}")

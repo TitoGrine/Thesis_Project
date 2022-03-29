@@ -44,7 +44,7 @@ def remove_sanitized_chars(tweet): return re.sub(
 def remove_short(tweet): return preprocessing.strip_short(tweet, minsize=3)
 
 
-class Collector:
+class Extractor:
     # MAX_TWEETS = 100
     MAX_TWEETS = 7500
     # Set training parameters.
@@ -328,8 +328,8 @@ class Collector:
             "retweets": retweets_topics
         }
 
-        with open(f'test.json', 'w') as f:
-            json.dump(topical_words_state, f)
+        # with open(f'test.json', 'w') as f:
+        #     json.dump(topical_words_state, f)
 
-        # with open(f'{self.user_folder}/topical_words.pickle', 'ab+') as f:
-        #     pickle.dump(topical_words_state, f)
+        with open(f'{self.user_folder}/topical_words.pickle', 'ab+') as f:
+            pickle.dump(topical_words_state, f)
