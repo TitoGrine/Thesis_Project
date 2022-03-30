@@ -1,5 +1,6 @@
 import requests
 import re
+from pprint import pprint
 from urllib.parse import urlparse, urljoin
 from bs4 import BeautifulSoup
 
@@ -83,7 +84,11 @@ class Crawler:
             self.crawl(link)
 
     def print_state(self):
-        print(f"Total Internal links: {len(self.internal_urls)}")
-        print(f"Total External links: {len(self.external_urls)}")
-        print(f"Total Emails: {len(self.emails)}")
-        print(f"Total Phone Numbers: {len(self.phone_numbers)}")
+        print("Total Internal links:")
+        pprint(self.internal_urls)
+        print("Total External links:")
+        pprint(self.external_urls)
+        print("Total Emails:")
+        pprint(self.emails)
+        print("Total Phone Numbers:")
+        pprint(self.phone_numbers)

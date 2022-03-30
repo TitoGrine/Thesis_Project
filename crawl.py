@@ -1,8 +1,11 @@
 import json
+from pprint import pprint
 from lassie import Lassie
 from bs4 import BeautifulSoup
 from gensim.parsing.preprocessing import remove_stopwords
 from crawler import Crawler
+from trafilatura import fetch_url, extract
+from trafilatura.spider import focused_crawler
 
 
 def test_crawler():
@@ -24,7 +27,7 @@ def lassie_test():
         l.parser = "html.parser"
 
         lassie_res = l.fetch(
-            'http://www.youtube.com/watch?v=dQw4w9WgXcQ')
+            'https://sproutsocial.com/insights/twitter-cards/')
         # 'https://greengenerationinitiative.org/about/'
 
         html = lassie_res['html']
@@ -36,6 +39,18 @@ def lassie_test():
         lassie_res['html'] = remove_stopwords(' '.join(soup.stripped_strings))
 
         json.dump(lassie_res, f)
+
+
+def trafilatura_test():
+    # downloaded = fetch_url('https://greengenerationinitiative.org/about/')
+    # print(extract(downloaded))
+    to_visit, known_urls = focused_crawler(
+        'https://greengenerationinitiative.org/about/', max_seen_urls=50)
+
+    print("Total Internal links:")
+    pprint(list(to_visit))
+    print("Total External links:")
+    pprint(list(known_urls))
 
 
 def main():
