@@ -1,3 +1,4 @@
+import time
 import json
 from pprint import pprint
 from lassie import Lassie
@@ -13,7 +14,8 @@ def test_crawler():
 
     cwlr.crawl('https://greengenerationinitiative.org/about/')
 
-    cwlr.print_state()
+    with open(f'test.json', 'w') as f:
+        json.dump(cwlr.get_state(), f)
 
 
 def lassie_test():
@@ -41,20 +43,10 @@ def lassie_test():
         json.dump(lassie_res, f)
 
 
-def trafilatura_test():
-    # downloaded = fetch_url('https://greengenerationinitiative.org/about/')
-    # print(extract(downloaded))
-    to_visit, known_urls = focused_crawler(
-        'https://greengenerationinitiative.org/about/', max_seen_urls=50)
-
-    print("Total Internal links:")
-    pprint(list(to_visit))
-    print("Total External links:")
-    pprint(list(known_urls))
-
-
 def main():
+    start_time = time.time()
     test_crawler()
+    print("Elapsed time: %s seconds" % (time.time() - start_time))
 
 
 if __name__ == '__main__':

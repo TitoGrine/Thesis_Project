@@ -213,8 +213,8 @@ def get_similarities_test(rows):
 def save_similarities():
     ft_wiki_scorer = Scorer("fasttext-wiki-news-subwords-300")
     print("Loaded fasttext-wiki-news-subwords-300.")
-    glove_twitter_scorer = Scorer("glove-twitter-25")
-    print("Loaded glove-twitter-25.")
+    glove_twitter_scorer = Scorer("glove-twitter-200")
+    print("Loaded glove-twitter-200.")
     glove_wiki_scorer = Scorer("glove-wiki-gigaword-300")
     print("Loaded glove-wiki-gigaword-300.")
     w2v_news_scorer = Scorer("word2vec-google-news-300")
