@@ -241,11 +241,11 @@ def main():
 
     # extract_all_topics()
 
-    # start_time = time.time()
-    # get_user_tweets_and_topics('DavidDias99')
-    # print("Elapsed time: %s seconds" % (time.time() - start_time))
+    start_time = time.time()
+    get_user_tweets_and_topics('TheOmniLiberal')
+    print("Elapsed time: %s seconds" % (time.time() - start_time))
 
-    save_similarities()
+    # save_similarities()
 
 
 if __name__ == '__main__':

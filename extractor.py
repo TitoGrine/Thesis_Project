@@ -328,8 +328,8 @@ class Extractor:
             "retweets": retweets_topics
         }
 
-        # with open(f'test.json', 'w') as f:
-        #     json.dump(topical_words_state, f)
+        with open(f'test.json', 'w') as f:
+            json.dump(topical_words_state, f)
 
-        with open(f'{self.user_folder}/topical_words.pickle', 'ab+') as f:
-            pickle.dump(topical_words_state, f)
+        # with open(f'{self.user_folder}/topical_words.pickle', 'ab+') as f:
+        #     pickle.dump(topical_words_state, f)
