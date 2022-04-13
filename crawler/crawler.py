@@ -5,6 +5,7 @@ import time
 import functools
 import operator
 import json
+import chromedriver_autoinstaller
 from selenium import webdriver
 from selenium.webdriver.chromium.options import ChromiumOptions as Options
 
@@ -17,6 +18,8 @@ from bs4 import BeautifulSoup, SoupStrainer
 from gensim.parsing.preprocessing import remove_stopwords
 
 from .utils import standardize_url, active_url, filter_amp_data, filter_meta_data, clean_text
+
+chromedriver_autoinstaller.install()
 
 
 class Crawler:
@@ -243,6 +246,41 @@ class Crawler:
         self.crawl_helper(url)
 
         self.check_external_urls()
+
+    def get_combinations(self, words):
+        strip_chars = " -_"
+        words = [word.lower().strip(strip_chars).replace("|", "")
+                 for word in words]
+        word_comb = set(words)
+
+        for word in words:
+            word_comb.add(word.replace(" ", "-").strip(strip_chars))
+            word_comb.add(word.replace(" ", "_").strip(strip_chars))
+            word_comb.add(word.replace(" ", "").strip(strip_chars))
+            word_comb.add(word.replace("_", "-").strip(strip_chars))
+            word_comb.add(word.replace("_", " ").strip(strip_chars))
+            word_comb.add(word.replace("_", "").strip(strip_chars))
+            word_comb.add(word.replace("-", "_").strip(strip_chars))
+            word_comb.add(word.replace("-", " ").strip(strip_chars))
+            word_comb.add(word.replace("-", "").strip(strip_chars))
+
+        return word_comb
+
+    def check_for_matches(self, words):
+        word_comb = self.get_combinations(words)
+        pattern = re.compile("|".join(word_comb))
+
+        matches = {
+            "name": bool(re.search(pattern, (self.name.lower()))),
+            "titles": bool(re.search(pattern, (self.title.lower()))),
+            "description": bool(re.search(pattern, (self.description.lower()))),
+            "internal links": True in (re.search(pattern, link.lower()) for link in self.internal_urls),
+            "external links": True in (re.search(pattern, link.lower()) for link in self.external_urls),
+            "emails": True in (re.search(pattern, email.lower()) for email in self.emails),
+            "corpus": bool(re.search(pattern, (self.text.lower()))),
+        }
+
+        pprint(matches)
 
     def save_state(self):
         state = {

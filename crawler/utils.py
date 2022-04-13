@@ -233,7 +233,6 @@ def filter_meta_data(soup, url=None, source="generic"):
 
     html = soup.find_all('meta', {meta['key']: meta['pattern']})
 
-    print(html)
     keywords = []
     description = ""
 

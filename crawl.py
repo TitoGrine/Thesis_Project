@@ -1,84 +1,78 @@
-import time
-import requests
-import json
-import chromedriver_autoinstaller
 import re
-from requests_html import HTMLSession
+import csv
+import time
+import json
+import tweepy
+import requests
+import unicodedata
 from pprint import pprint
 from lassie import Lassie
 from bs4 import BeautifulSoup
-from gensim.parsing.preprocessing import remove_stopwords
+from selenium import webdriver
 from crawler.crawler import Crawler
+from requests_html import HTMLSession
 from trafilatura import fetch_url, extract
 from trafilatura.spider import focused_crawler
 from urllib.parse import urlparse, urljoin, quote
-from selenium import webdriver
+from gensim.parsing.preprocessing import remove_stopwords
 from selenium.webdriver.chromium.options import ChromiumOptions as Options
 
 
-chromedriver_autoinstaller.install()
+api = tweepy.Client(
+    bearer_token='AAAAAAAAAAAAAAAAAAAAADTxXwEAAAAApg4qeQrET9wiXNc8VqrxZF9aK%2Bs%3DT04MJA4P6nj14b41JzTfivhlWICAtQhmzO6XxvQipxISmh5pcS')
 
 
-def test_crawler():
-    cwlr = Crawler(crawl_javascript=False)
+def test_crawler(with_selenium=False):
+    cwlr = Crawler(crawl_javascript=with_selenium)
 
     start_time = time.time()
-    # cwlr.crawl('https://biglink.to/faDS')
-    # cwlr.crawl('https://greengenerationinitiative.org/about/')
-    cwlr.crawl("https://linkgenie.co/Jessicakes33")
-    # cwlr.crawl("https://allmylinks.com/lunalovelyx")
-    # cwlr.crawl("https://withkoji.com/@piperrockelle")
+    cwlr.crawl('http://linktr.ee/allierougeot')
+    cwlr.check_for_matches(["Allie Rougeot", "AlienorR2"])
     cwlr.save_state()
     print("Elapsed time: %s seconds" % (time.time() - start_time))
 
 
-def lassie_test():
-    with open(f'lassie.json', 'w') as f:
-        l = Lassie()
-        l.request_opts = {
-            'headers': {
-                'Accept-Language': 'en-US,en'
-            }
-        }
-        l.parser = "lxml"
-
-        lassie_res = l.fetch("https://linkgenie.co/Jessicakes33")
-
-        json.dump(lassie_res, f)
-
-        with open("output.html", "w") as file:
-            file.write(str(lassie_res["html"]))
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 
-def test_selenium():
-    with open("output.html", "w") as file:
-        options = Options()
+def batch_request(twitter_handles):
+    users = api.get_users(usernames=twitter_handles).data
 
-        options.headless = True
-        options.add_argument("--enable-javascript")
+    res = {}
 
-        driver = webdriver.Chrome(options=options)
+    for user in users:
+        res[user['username']] = unicodedata.normalize(
+            "NFKD", user['name'].decode("utf8", errors='replace'))
 
-        driver.get('https://biglink.to/faDS')
+    return res
 
-        # print(res.html.html.links)
 
-        soup = BeautifulSoup(driver.page_source, "lxml")
+def save_states():
+    with open("sources/websites_dataset.csv", 'r', encoding='UTF8') as f:
+        reader = csv.reader(f)
+        next(reader)
 
-        scripts = soup(text=re.compile(r'window\.preloadLink = \{.*\}'))
+        handles = set()
 
-        print(scripts)
+        for [handle, website] in reader:
+            handles.add(handle)
 
-        file.write(str(driver.page_source))
+        handles_chunks = list(chunks(list(handles), 100))
 
-        driver.quit()
+        mapping = {}
+
+        for chunk in handles_chunks:
+            mapping.update(batch_request(chunk))
+
+        with open("handle_mapping.json", 'x') as fp:
+            json.dump(mapping, fp)
 
 
 def main():
-    if not False:
-        test_crawler()
-    else:
-        lassie_test()
+    save_states()
 
 
 if __name__ == '__main__':
