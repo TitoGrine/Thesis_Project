@@ -1,14 +1,17 @@
-import requests
-import re
-import random
+# import re
 import time
-import functools
-import operator
 import json
+import random
+import pickle
+import requests
+import operator
+import functools
+import validators
+import regex as re
 import chromedriver_autoinstaller
+
 from selenium import webdriver
 from selenium.webdriver.chromium.options import ChromiumOptions as Options
-
 from lassie import Lassie
 from multiprocessing import Pool
 from concurrent.futures import ThreadPoolExecutor
@@ -17,21 +20,17 @@ from urllib.parse import urlparse, urljoin, quote
 from bs4 import BeautifulSoup, SoupStrainer
 from gensim.parsing.preprocessing import remove_stopwords
 
-from .utils import standardize_url, active_url, filter_amp_data, filter_meta_data, clean_text
+from .utils import standardize_url, filter_amp_data, filter_meta_data, clean_text
 
 chromedriver_autoinstaller.install()
 
 
 class Crawler:
-    SESSION_TIMEOUT = 5
+    SESSION_TIMEOUT = 30
+    VERIFY = False
     REJECT_TYPES = ["favicon", "twitter:image"]
-    SPECIAL_CRAWLING = ["linktr.ee", "lnk.to",
+    SPECIAL_CRAWLING = ["linktr.ee", "lnk.to", "ampl.ink",
                         "biglink.to", "linkgenie.co", "allmylinks.com", "withkoji.com"]
-
-    internal_urls = set()
-    external_urls = set()
-    emails = set()
-    phone_numbers = set()
 
     def __init__(self, crawl_javascript=False, max_urls=15):
         self.max_urls = max_urls
@@ -44,20 +43,18 @@ class Crawler:
         self.text = ""
         self.is_link_tree = False
         self.crawl_javascript = crawl_javascript
+        self.original_url = ""
+
+        self.internal_urls = set()
+        self.external_urls = set()
+        self.emails = set()
+        self.phone_numbers = set()
 
     def get_session(self):
         session = requests.Session()
         session.timeout = self.SESSION_TIMEOUT
 
         return session
-
-    def is_valid(self, url):
-        """
-        Checks whether `url` is a valid URL.
-        """
-        parsed = urlparse(url)
-
-        return bool(parsed.netloc) and bool(parsed.scheme)
 
     def get_driver(self):
         options = Options()
@@ -69,9 +66,6 @@ class Crawler:
 
     def confirm_url(self, url):
         try:
-            # response = self.lassie.fetch(
-            #     url, twitter_card=False, touch_icon=False, favicon=False)
-
             if self.crawl_javascript:
                 driver = self.get_driver()
                 driver.get(url)
@@ -84,7 +78,7 @@ class Crawler:
             else:
                 response = requests.get(url, headers={
                     'Accept-Language': 'en-US,en'
-                })
+                }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
                 status_code = response.status_code
                 source = response.text
 
@@ -144,13 +138,13 @@ class Crawler:
                 return []
         elif domain == "biglink.to" or domain == "withkoji.com":
             return []
-        elif domain == "lnk.to":
+        elif domain == "lnk.to" and domain == "ampl.ink":
             return [tag.attrs.get("href") for tag in soup.find_all(["a"])]
         elif domain == "linkgenie.co":
             linkgenie_links = [tag.attrs.get("href")
                                for tag in soup.find_all(["a"])]
 
-            return [self.get_session().get(link).url for link in linkgenie_links]
+            return [requests.get(link).url for link in linkgenie_links]
         elif domain == "allmylinks.com":
             return [tag.attrs.get("title") for tag in soup.find_all(["a"])]
 
@@ -177,14 +171,16 @@ class Crawler:
         soup = BeautifulSoup(clean_text(html), "lxml")
         links = self.get_website_links(domain_name, soup)
 
-        description, keywords = filter_meta_data(soup, url)
+        description, keywords, title = filter_meta_data(soup, url)
+        self.save_title(title)
+        self.save_description(description)
+        self.save_keywords(keywords)
+
         name, title, images = filter_amp_data(soup, url)
         self.save_text(soup)
         self.save_name(name)
         self.save_title(title)
         self.save_images(images)
-        self.save_keywords(keywords)
-        self.save_description(description)
 
         for link in links:
             if link is None:
@@ -193,8 +189,9 @@ class Crawler:
             link = link.strip()
 
             if link.find('mailto:') > -1:
-                if link not in self.emails:
-                    self.emails.add(link.split(":")[1])
+                email = link.split(":")[1]
+                if link not in self.emails and validators.email(email):
+                    self.emails.add(email)
                 continue
 
             if link.find('tel:') > -1:
@@ -209,12 +206,13 @@ class Crawler:
             link = parsed_link.scheme + "://" + parsed_link.netloc + parsed_link.path
             link = standardize_url(link)
 
-            if not self.is_valid(link):
+            if not validators.url(link):
                 # not a valid URL
                 continue
             if link in self.internal_urls:
                 # already in the set
                 continue
+
             if domain_name not in link:
                 # external link
                 if link not in self.external_urls:
@@ -229,11 +227,11 @@ class Crawler:
     def check_external_urls(self):
         external_urls = self.external_urls
 
-        self.external_urls = filter(active_url, self.external_urls)
+        self.external_urls = filter(validators.url, self.external_urls)
 
     def crawl_helper(self, url):
-        if self.total_urls_visited > self.max_urls:
-            return []
+        if self.total_urls_visited >= self.max_urls:
+            return
 
         self.total_urls_visited += 1
 
@@ -241,6 +239,7 @@ class Crawler:
             self.crawl_helper(link)
 
     def crawl(self, url):
+        self.original_url = url
         self.internal_urls.add(standardize_url(url))
 
         self.crawl_helper(url)
@@ -249,20 +248,12 @@ class Crawler:
 
     def get_combinations(self, words):
         strip_chars = " -_"
-        words = [word.lower().strip(strip_chars).replace("|", "")
+        words = [re.sub(r"\W|_", " ", word.lower().strip(strip_chars)).replace(" ", "{e<=2}(\W|(\w)*){1,2}") + "{e<=2}"
                  for word in words]
         word_comb = set(words)
 
         for word in words:
-            word_comb.add(word.replace(" ", "-").strip(strip_chars))
-            word_comb.add(word.replace(" ", "_").strip(strip_chars))
-            word_comb.add(word.replace(" ", "").strip(strip_chars))
-            word_comb.add(word.replace("_", "-").strip(strip_chars))
-            word_comb.add(word.replace("_", " ").strip(strip_chars))
-            word_comb.add(word.replace("_", "").strip(strip_chars))
-            word_comb.add(word.replace("-", "_").strip(strip_chars))
-            word_comb.add(word.replace("-", " ").strip(strip_chars))
-            word_comb.add(word.replace("-", "").strip(strip_chars))
+            word_comb.add(word.replace("&", "and"))
 
         return word_comb
 
@@ -282,8 +273,9 @@ class Crawler:
 
         pprint(matches)
 
-    def save_state(self):
+    def save_state(self, filename):
         state = {
+            "URL": self.original_url,
             "Name": self.name.lower(),
             "Titles": self.title.lower(),
             "Description": self.description.lower(),
@@ -297,5 +289,5 @@ class Crawler:
             "Text": self.text.lower()
         }
 
-        with open(f'./test.json', 'w') as f:
+        with open(f'{filename}.json', 'x') as f:
             json.dump(state, f)

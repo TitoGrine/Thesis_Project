@@ -131,6 +131,7 @@ dmypy.json
 # Custom
 sources/
 data/
+websites/
 *.txt
 *.json
 *.html

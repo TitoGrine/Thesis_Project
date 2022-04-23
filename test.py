@@ -9,7 +9,6 @@ import tweepy
 from extractor import Extractor
 from similarity import Scorer
 from multiprocessing import Pool
-from multiprocessing import freeze_support
 from gensim.parsing import preprocessing
 
 api = tweepy.Client(
@@ -249,5 +248,4 @@ def main():
 
 
 if __name__ == '__main__':
-    freeze_support()
     main()

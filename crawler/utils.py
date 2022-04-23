@@ -17,18 +17,6 @@ def standardize_url(url):
     return url[:-1] + url[-1:].replace("/", "")
 
 
-def active_url(url):
-    try:
-        response = requests.head(url)
-
-        if response.status_code >= 400:
-            return False
-    except:
-        return False
-
-    return True
-
-
 """
     Functions taken from the lassie library: https://github.com/michaelhelmick/lassie
 """
@@ -235,6 +223,7 @@ def filter_meta_data(soup, url=None, source="generic"):
 
     keywords = []
     description = ""
+    title = ""
 
     for line in html:
         prop = line.get(meta['key'])
@@ -247,7 +236,9 @@ def filter_meta_data(soup, url=None, source="generic"):
                     keywords = [v.strip() for v in value.split(',')]
             elif prop == "description":
                 description = value
+            elif prop == "title":
+                title = title
             else:
                 print(f"{prop}: {value}")
 
-    return description, keywords
+    return description, keywords, title
