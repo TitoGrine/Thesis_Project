@@ -20,7 +20,7 @@ from urllib.parse import urlparse, urljoin, quote
 from bs4 import BeautifulSoup, SoupStrainer
 from gensim.parsing.preprocessing import remove_stopwords
 
-from .utils import standardize_url, filter_amp_data, filter_meta_data, clean_text
+from .utils import standardize_url, filter_amp_data, filter_meta_data, clean_text, link_belongs_to_domain
 
 chromedriver_autoinstaller.install()
 
@@ -32,29 +32,69 @@ class Crawler:
     SPECIAL_CRAWLING = ["linktr.ee", "lnk.to", "ampl.ink",
                         "biglink.to", "linkgenie.co", "allmylinks.com", "withkoji.com"]
 
-    def __init__(self, crawl_javascript=False, max_urls=15):
+    def __init__(self, state_file=None, crawl_javascript=False, max_urls=15):
+        self.crawl_javascript = crawl_javascript
         self.max_urls = max_urls
         self.total_urls_visited = 0
-        self.description = ""
-        self.keywords = []
-        self.images = []
+
+        if state_file is not None:
+            self.load_state(state_file)
+        else:
+            self.initialize_state()
+
+    def save_state(self, filename):
+        state = {
+            "original_url": self.original_url,
+            "name": self.name.lower(),
+            "title": self.title.lower(),
+            "description": self.description.lower(),
+            "keywords": self.keywords,
+            "internal_links": list(self.internal_links),
+            "external_links": list(self.external_links),
+            "emails": list(self.emails),
+            "phone_numbers": list(self.phone_numbers),
+            "images": self.images,
+            "corpus": self.corpus.lower(),
+            "is_link_tree": self.is_link_tree,
+        }
+
+        with open(f'{filename}.json', 'x') as f:
+            json.dump(state, f)
+
+    def load_state(self, state_file):
+        with open(f'{state_file}.json', 'r') as f:
+            state = json.load(f)
+
+            try:
+                self.original_url = state["original_url"]
+                self.name = state["name"]
+                self.title = state["title"]
+                self.description = state["description"]
+                self.internal_links = state["internal_links"]
+                self.external_links = state["external_links"]
+                self.keywords = state["keywords"]
+                self.emails = state["emails"]
+                self.phone_numbers = state["phone_numbers"]
+                self.corpus = state["corpus"]
+                self.images = state["images"]
+                self.is_link_tree = state["is_link_tree"]
+            except Exception as e:
+                print(f"Error loading state: {e}")
+
+    def initialize_state(self):
+        self.original_url = ""
         self.name = ""
         self.title = ""
-        self.text = ""
+        self.description = ""
+        self.corpus = ""
+        self.keywords = []
+        self.images = []
         self.is_link_tree = False
-        self.crawl_javascript = crawl_javascript
-        self.original_url = ""
 
-        self.internal_urls = set()
-        self.external_urls = set()
+        self.internal_links = set()
+        self.external_links = set()
         self.emails = set()
         self.phone_numbers = set()
-
-    def get_session(self):
-        session = requests.Session()
-        session.timeout = self.SESSION_TIMEOUT
-
-        return session
 
     def get_driver(self):
         options = Options()
@@ -76,7 +116,7 @@ class Crawler:
 
                 driver.quit()
             else:
-                response = requests.get(url, headers={
+                response = requests.request("GET", url, headers={
                     'Accept-Language': 'en-US,en'
                 }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
                 status_code = response.status_code
@@ -115,12 +155,11 @@ class Crawler:
         if title and len(title) > 0:
             self.title += " " + title
 
-    def save_text(self, soup_html):
+    def save_corpus(self, soup_html):
         for s in soup_html(['script', 'style']):
             s.decompose()
 
-        self.text += " " + \
-            remove_stopwords(' '.join(soup_html.stripped_strings))
+        self.corpus += " " + ' '.join(soup_html.stripped_strings).lower()
 
     def get_website_links(self, domain, soup):
         if domain not in self.SPECIAL_CRAWLING:
@@ -128,7 +167,7 @@ class Crawler:
         else:
             self.is_link_tree = True
 
-        if domain == "linktr.ee":
+        if "linktr.ee" in domain:
             script_contents = soup.find(id="__NEXT_DATA__").contents
 
             try:
@@ -136,16 +175,16 @@ class Crawler:
                     "props"]["pageProps"]["account"]["links"] if "url" in link]
             except Exception as e:
                 return []
-        elif domain == "biglink.to" or domain == "withkoji.com":
+        elif "biglink.to" in domain or "withkoji.com" in domain:
             return []
-        elif domain == "lnk.to" and domain == "ampl.ink":
+        elif "lnk.to" in domain or "ampl.ink" in domain:
             return [tag.attrs.get("href") for tag in soup.find_all(["a"])]
-        elif domain == "linkgenie.co":
+        elif "linkgenie.co" in domain:
             linkgenie_links = [tag.attrs.get("href")
                                for tag in soup.find_all(["a"])]
 
             return [requests.get(link).url for link in linkgenie_links]
-        elif domain == "allmylinks.com":
+        elif "allmylinks.com" in domain:
             return [tag.attrs.get("title") for tag in soup.find_all(["a"])]
 
     def parse_website(self, url):
@@ -155,13 +194,13 @@ class Crawler:
         # all URLs of `url`
         urls = set()
         # domain name of the URL without the protocol
-        domain_name = urlparse(url).netloc
+        domain_name = urlparse(url).hostname
 
         html = self.confirm_url(url)
 
         if html is None:
-            if url in self.internal_urls:
-                self.internal_urls.remove(url)
+            if url in self.internal_links:
+                self.internal_links.remove(url)
             return []
 
         if '<html' not in html:
@@ -177,7 +216,7 @@ class Crawler:
         self.save_keywords(keywords)
 
         name, title, images = filter_amp_data(soup, url)
-        self.save_text(soup)
+        self.save_corpus(soup)
         self.save_name(name)
         self.save_title(title)
         self.save_images(images)
@@ -209,25 +248,25 @@ class Crawler:
             if not validators.url(link):
                 # not a valid URL
                 continue
-            if link in self.internal_urls:
+            if link in self.internal_links:
                 # already in the set
                 continue
 
-            if domain_name not in link:
+            if not link_belongs_to_domain(link, domain_name):
                 # external link
-                if link not in self.external_urls:
-                    self.external_urls.add(link)
+                if link not in self.external_links:
+                    self.external_links.add(link)
                 continue
 
             urls.add(link)
-            self.internal_urls.add(link)
+            self.internal_links.add(link)
 
         return urls
 
-    def check_external_urls(self):
-        external_urls = self.external_urls
+    def check_external_links(self):
+        external_links = self.external_links
 
-        self.external_urls = filter(validators.url, self.external_urls)
+        self.external_links = filter(validators.url, self.external_links)
 
     def crawl_helper(self, url):
         if self.total_urls_visited >= self.max_urls:
@@ -240,54 +279,77 @@ class Crawler:
 
     def crawl(self, url):
         self.original_url = url
-        self.internal_urls.add(standardize_url(url))
+        self.internal_links.add(standardize_url(url))
 
         self.crawl_helper(url)
 
-        self.check_external_urls()
+        self.check_external_links()
 
-    def get_combinations(self, words):
-        strip_chars = " -_"
-        words = [re.sub(r"\W|_", " ", word.lower().strip(strip_chars)).replace(" ", "{e<=2}(\W|(\w)*){1,2}") + "{e<=2}"
-                 for word in words]
-        word_comb = set(words)
+    def get_combinations(self, terms):
+        # strip_chars = " -_"
+        terms = [re.sub(r"(\W|_)+", " ", term.lower()).strip()
+                 for term in terms]
+        term_comb = set(terms)
 
-        for word in words:
-            word_comb.add(word.replace("&", "and"))
+        for term in terms:
+            term_comb.add(term.replace("&", "and"))
 
-        return word_comb
+        term_tuples = []
 
-    def check_for_matches(self, words):
-        word_comb = self.get_combinations(words)
-        pattern = re.compile("|".join(word_comb))
+        # Dictionary with regex and the number of chars
 
-        matches = {
-            "name": bool(re.search(pattern, (self.name.lower()))),
-            "titles": bool(re.search(pattern, (self.title.lower()))),
-            "description": bool(re.search(pattern, (self.description.lower()))),
-            "internal links": True in (re.search(pattern, link.lower()) for link in self.internal_urls),
-            "external links": True in (re.search(pattern, link.lower()) for link in self.external_urls),
-            "emails": True in (re.search(pattern, email.lower()) for email in self.emails),
-            "corpus": bool(re.search(pattern, (self.text.lower()))),
-        }
+        for term in term_comb:
+            size = len(term)
+            regex_term = "(?b)(\\b" + term.replace(" ",
+                                                   "){e<=2}(\w){0,2}((\W|_)|(\W|_)(\w)*(\W|_)){0,2}(\w){0,2}(?b)(") + "\\b){e<=2}"
 
-        pprint(matches)
+            term_tuples.append((regex_term, size))
 
-    def save_state(self, filename):
-        state = {
-            "URL": self.original_url,
-            "Name": self.name.lower(),
-            "Titles": self.title.lower(),
-            "Description": self.description.lower(),
-            "Keywords": self.keywords,
-            "Link Tree": self.is_link_tree,
-            "Total Internal links": list(self.internal_urls),
-            "Total External links": list(self.external_urls),
-            "Total Emails": list(self.emails),
-            "Total Phone Numbers": list(self.phone_numbers),
-            "Images": self.images,
-            "Text": self.text.lower()
-        }
+        return term_tuples
 
-        with open(f'{filename}.json', 'x') as f:
-            json.dump(state, f)
+    def calculate_score(self, original_length, match_length, num_errors):
+        abs_diff = abs(original_length - match_length)
+
+        return original_length / (original_length + abs_diff + num_errors)
+
+    def get_score(self, search_term, length, string):
+        match = re.search(search_term, string)
+
+        if match:
+            #         print(f"""
+            # The search term:
+            #     {search_term}
+            # Matched with:
+            #     {match[0]}
+            # Allowing the following errors:
+            #     {match.fuzzy_changes}
+            # With a score of:
+            #     {self.calculate_score(length, len(match[0]), sum(match.fuzzy_counts))}
+            #         """)
+
+            return self.calculate_score(length, len(match[0]), sum(match.fuzzy_counts))
+
+        return 0
+
+    def check_for_matches(self, terms):
+        search_terms = self.get_combinations(terms)
+        match_scores = []
+
+        for search_term, length in search_terms:
+
+            matches = {
+                "name": self.get_score(search_term, length, self.name.lower()),
+                "titles": self.get_score(search_term, length, self.title.lower()),
+                "description": self.get_score(search_term, length, self.description.lower()),
+                "internal links": self.get_score(search_term, length, " ".join(self.internal_links).lower()),
+                "external links": self.get_score(search_term, length, " ".join(self.external_links).lower()),
+                "emails": self.get_score(search_term, length, " ".join(self.emails).lower()),
+                "corpus": self.get_score(search_term, length, self.corpus.lower()),
+            }
+
+            match_scores.append(sum(matches.values()))
+            # pprint(matches)
+
+        pprint(match_scores)
+
+        return match_scores

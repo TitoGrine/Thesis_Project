@@ -17,6 +17,12 @@ def standardize_url(url):
     return url[:-1] + url[-1:].replace("/", "")
 
 
+def link_belongs_to_domain(link, domain):
+    link_domain = urlparse(link).hostname
+
+    return bool(re.search(r"(?:[^/:]+\.)?" + domain, link_domain)) or bool(re.search(r"(?:[^/:]+\.)?" + link_domain, domain))
+
+
 """
     Functions taken from the lassie library: https://github.com/michaelhelmick/lassie
 """

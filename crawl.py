@@ -41,6 +41,26 @@ def test_crawler(handle, url):
         print(f"Issue crawling {url}: {e}")
 
 
+def test_matching(handle, url):
+    domain_name = urlparse(url).netloc
+    filename = f"websites/{handle}_{domain_name}"
+
+    if not os.path.exists(f"{filename}.json"):
+        return
+
+    with open(f'handle_mapping.json', 'r') as f:
+        mapping = json.load(f)
+
+        terms = [handle, mapping[handle]]
+
+        print(f"Initial terms: {terms}.")
+
+        cwlr = Crawler(state_file=filename)
+        cwlr.check_for_matches(terms)
+        # except Exception as e:
+        #     print(f"Issue matching {url}: {e}")
+
+
 def chunks(lst, n):
     """Yield successive n-sized chunks from lst."""
     for i in range(0, len(lst), n):
@@ -69,27 +89,6 @@ def batch_request(twitter_handles):
     return res
 
 
-def save_states():
-    with open("sources/websites_dataset.csv", 'r', encoding='UTF8') as f:
-        reader = csv.reader(f)
-        next(reader)
-
-        handles = set()
-
-        for [handle, website] in reader:
-            handles.add(handle)
-
-        handles_chunks = list(chunks(list(handles), 100))
-
-        mapping = {}
-
-        for chunk in handles_chunks:
-            mapping.update(batch_request(chunk))
-
-        with open("handle_mapping.json", 'w') as fp:
-            json.dump(mapping, fp)
-
-
 def save_websites():
     with open("sources/websites_dataset.csv", 'r', encoding='UTF8') as f:
         reader = csv.reader(f)
@@ -112,8 +111,10 @@ def save_websites():
 
 def main():
     start_time = time.time()
-    save_websites()
-    # test_crawler("test", "https://karlrecords.bandcamp.com/")
+    # save_websites()
+    # test_crawler(
+    #     "../test", "https://www.ravelinmagazine.com/posts/the-epic-experiments-of-eluvium/")
+    test_matching("steve_timeroom", "https://www.steveroach.bandcamp.com")
 
     print("Elapsed time: %s seconds" % (time.time() - start_time))
 
