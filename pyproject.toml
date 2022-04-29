@@ -20,6 +20,7 @@ selenium = "^4.1.3"
 tweepy = "^4.8.0"
 wordfreq = "^3.0.1"
 validators = "^0.18.2"
+python-decouple = "^3.6"
 
 [tool.poetry.dev-dependencies]
 

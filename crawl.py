@@ -10,12 +10,11 @@ from urllib.parse import urlparse
 
 import numpy
 import tweepy
+from decouple import config
+from crawler.crawler import Crawler
 from gensim.parsing.preprocessing import strip_multiple_whitespaces
 
-from crawler.crawler import Crawler
-
-api = tweepy.Client(
-    bearer_token='AAAAAAAAAAAAAAAAAAAAADTxXwEAAAAApg4qeQrET9wiXNc8VqrxZF9aK%2Bs%3DT04MJA4P6nj14b41JzTfivhlWICAtQhmzO6XxvQipxISmh5pcS')
+api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
 
 
 def test_crawler(handle, url):
@@ -135,7 +134,7 @@ def get_negative_matches(mapping, rows):
 
             while random_handle == handle:
                 random_handle = usernames[(
-                    index + random.randint(0, 10)) % len(usernames)]
+                                                  index + random.randint(0, 10)) % len(usernames)]
 
             random_username = mapping[random_handle]
 

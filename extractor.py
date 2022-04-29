@@ -1,26 +1,26 @@
-import json
 import os
 import re
-
+import json
 import nltk
 import tweepy
+
+from decouple import config
 from bloom_filter2 import BloomFilter
 from gensim.corpora import Dictionary
 from gensim.models import EnsembleLda
 from gensim.parsing import preprocessing
-from nltk.stem.wordnet import WordNetLemmatizer
 from nltk.tokenize import RegexpTokenizer
+from nltk.stem.wordnet import WordNetLemmatizer
 
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
-if False:
-    logging.basicConfig(
-        format='%(asctime)s : %(levelname)s : %(message)s', level=logging.INFO)
+api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
 
 
 def remove_urls(tweet): return re.sub(
-    r'(https?:/\/(\s)*(www\.)?(\s)*((\w|\s)+\.)*([\w\-\s]+\//([\w\-]+)((\?)?[\w\s]*=\s*[\w\%&]*)*', "", tweet, flags=re.MULTILINE)
+    r'(https?:/\/(\s)*(www\.)?(\s)*((\w|\s)+\.)*([\w\-\s]+\//([\w\-]+)((\?)?[\w\s]*=\s*[\w\%&]*)*', "", tweet,
+    flags=re.MULTILINE)
 
 
 def remove_mentions(tweet): return re.sub(
@@ -46,9 +46,6 @@ class Extractor:
     PASSES = 20
     ITERATIONS = 400
     EVAL_EVERY = None  # Don't evaluate model perplexity, takes too much time.
-
-    api = tweepy.Client(
-        bearer_token='AAAAAAAAAAAAAAAAAAAAADTxXwEAAAAApg4qeQrET9wiXNc8VqrxZF9aK%2Bs%3DT04MJA4P6nj14b41JzTfivhlWICAtQhmzO6XxvQipxISmh5pcS')
 
     user_fields = ["description", "entities", "location", "name"]
 
@@ -78,7 +75,7 @@ class Extractor:
 
     def force_init(self, handle, data_folder):
         try:
-            user = self.api.get_user(
+            user = api.get_user(
                 username=handle, user_fields=self.user_fields)
 
             self.id = user.data.id
@@ -97,7 +94,10 @@ class Extractor:
     @staticmethod
     def process_text(text):
         return preprocessing.preprocess_string(text, filters=[
-            remove_urls, remove_sanitized_chars, remove_retweet_tag, remove_mentions, str.lower, preprocessing.strip_tags, preprocessing.strip_punctuation, preprocessing.strip_numeric, preprocessing.strip_non_alphanum, preprocessing.strip_multiple_whitespaces, preprocessing.remove_stopwords, preprocessing.strip_short])
+            remove_urls, remove_sanitized_chars, remove_retweet_tag, remove_mentions, str.lower,
+            preprocessing.strip_tags, preprocessing.strip_punctuation, preprocessing.strip_numeric,
+            preprocessing.strip_non_alphanum, preprocessing.strip_multiple_whitespaces, preprocessing.remove_stopwords,
+            preprocessing.strip_short])
 
     def extract_profile_urls(self, entities):
         if entities is None:
@@ -233,8 +233,9 @@ class Extractor:
         next_token = None
 
         while tweet_count < self.MAX_TWEETS:
-            res = self.api.get_users_tweets(
-                id=self.id, max_results=100, tweet_fields=self.tweet_fields, pagination_token=next_token, expansions="referenced_tweets.id")
+            res = api.get_users_tweets(
+                id=self.id, max_results=100, tweet_fields=self.tweet_fields, pagination_token=next_token,
+                expansions="referenced_tweets.id")
 
             retweets = {}
 
