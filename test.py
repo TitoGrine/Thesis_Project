@@ -1,15 +1,13 @@
-import os
 import csv
-import sys
+import os
 import time
-import math
+from multiprocessing import Pool
+
 import numpy
 import tweepy
 
 from extractor import Extractor
 from similarity import Scorer
-from multiprocessing import Pool
-from gensim.parsing import preprocessing
 
 api = tweepy.Client(
     bearer_token='AAAAAAAAAAAAAAAAAAAAADTxXwEAAAAApg4qeQrET9wiXNc8VqrxZF9aK%2Bs%3DT04MJA4P6nj14b41JzTfivhlWICAtQhmzO6XxvQipxISmh5pcS')
@@ -43,7 +41,7 @@ def batch_request_users(twitter_handles):
             try:
                 extract_user_tweets_and_topics(user['username'], user)
             except Exception as e:
-                print(f"Error processing {twitter_handle}: {e}")
+                print(f"Error processing {user['username']}: {e}")
                 return
 
 
@@ -123,7 +121,7 @@ def get_wrong_theme(right_theme, index):
 
 
 def get_positive_similarities(rows, ft_wiki_scorer, glove_twitter_scorer, glove_wiki_scorer, w2v_news_scorer):
-    with open("sources/positive_similarities_dataset.csv", 'w', encoding='UTF8') as f:
+    with open("results/positive_similarities_dataset.csv", 'w', encoding='UTF8') as f:
         writer = csv.writer(f)
         header = ['theme', 'twitter_handle', 'description_ft_wiki', 'tweets_ft_wiki', 'retweets_ft_wiki', 'description_glove_twitter', 'tweets_glove_twitter',
                   'retweets_glove_twitter', 'description_glove_wiki', 'tweets_glove_wiki', 'retweets_glove_wiki', 'description_w2v_news', 'tweets_w2v_news', 'retweets_w2v_news']
@@ -156,7 +154,7 @@ def get_positive_similarities(rows, ft_wiki_scorer, glove_twitter_scorer, glove_
 
 
 def get_negative_similarities(rows, ft_wiki_scorer, glove_twitter_scorer, glove_wiki_scorer, w2v_news_scorer):
-    with open("sources/negative_similarities_dataset.csv", 'w', encoding='UTF8') as f:
+    with open("results/negative_similarities_dataset.csv", 'w', encoding='UTF8') as f:
         writer = csv.writer(f)
         header = ['theme', 'twitter_handle', 'description_ft_wiki', 'tweets_ft_wiki', 'retweets_ft_wiki', 'description_glove_twitter', 'tweets_glove_twitter',
                   'retweets_glove_twitter', 'description_glove_wiki', 'tweets_glove_wiki', 'retweets_glove_wiki', 'description_w2v_news', 'tweets_w2v_news', 'retweets_w2v_news']
@@ -190,7 +188,7 @@ def get_negative_similarities(rows, ft_wiki_scorer, glove_twitter_scorer, glove_
 def get_similarities_test(rows):
     ft_wiki_scorer = Scorer("word2vec-google-news-300")
 
-    with open("sources/positive_similarities_dataset_test.csv", 'a', encoding='UTF8') as f:
+    with open("results/positive_similarities_dataset_test.csv", 'a', encoding='UTF8') as f:
         writer = csv.writer(f)
         header = ['theme', 'twitter_handle', 'description_ft_wiki',
                   'tweets_ft_wiki', 'retweets_ft_wiki']

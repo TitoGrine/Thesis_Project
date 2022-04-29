@@ -1,26 +1,21 @@
-# import re
-import time
 import json
-import random
-import pickle
-import requests
-import operator
-import functools
-import validators
-import regex as re
-import chromedriver_autoinstaller
+import os
+import time
+from urllib.parse import urlparse, urljoin, unquote
 
+import chromedriver_autoinstaller
+import regex as re
+import requests
+import spacy
+import validators
+from bs4 import BeautifulSoup
+from gensim.parsing.preprocessing import remove_stopwords
 from selenium import webdriver
 from selenium.webdriver.chromium.options import ChromiumOptions as Options
-from lassie import Lassie
-from multiprocessing import Pool
-from concurrent.futures import ThreadPoolExecutor
-from pprint import pprint
-from urllib.parse import urlparse, urljoin, quote
-from bs4 import BeautifulSoup, SoupStrainer
-from gensim.parsing.preprocessing import remove_stopwords
+from wordfreq import zipf_frequency
 
-from .utils import standardize_url, filter_amp_data, filter_meta_data, clean_text, link_belongs_to_domain
+from crawler.utils import standardize_url, url_is_downloadable, map_entity_to_name, normalize_unicode_text, filter_amp_data, \
+    filter_meta_data, clean_text, link_belongs_to_domain, FAKE_USER_AGENT
 
 chromedriver_autoinstaller.install()
 
@@ -58,7 +53,9 @@ class Crawler:
             "is_link_tree": self.is_link_tree,
         }
 
-        with open(f'{filename}.json', 'x') as f:
+        write_mode = "w" if os.path.exists(f'{filename}.json') else "x"
+
+        with open(f'{filename}.json', write_mode) as f:
             json.dump(state, f)
 
     def load_state(self, state_file):
@@ -96,11 +93,17 @@ class Crawler:
         self.emails = set()
         self.phone_numbers = set()
 
-    def get_driver(self):
+    @staticmethod
+    def get_driver():
         options = Options()
+
+        prefs = {
+            "download_restrictions": 3,
+        }
 
         options.headless = True
         options.add_argument("--enable-javascript")
+        options.add_experimental_option("prefs", prefs)
 
         return webdriver.Chrome(options=options)
 
@@ -108,10 +111,28 @@ class Crawler:
         try:
             if self.crawl_javascript:
                 driver = self.get_driver()
+
+                head_req = requests.request("HEAD", url, headers={
+                    'Accept-Language': 'en-US,en',
+                    'User-Agent': FAKE_USER_AGENT
+                }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
+                status_code = head_req.status_code
+                downloadable = url_is_downloadable(head_req.headers)
+
+                # Sometimes HEAD request returns 4** error when GET returns 200
+                if 400 <= status_code < 500:
+                    head_req = requests.request("GET", url, headers={
+                        'Accept-Language': 'en-US,en',
+                        'User-Agent': FAKE_USER_AGENT
+                    }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
+                    status_code = head_req.status_code
+                    downloadable = url_is_downloadable(head_req.headers)
+
+                if downloadable:
+                    return None, 406
+
                 driver.get(url)
 
-                head_req = requests.head(url)
-                status_code = head_req.status_code
                 source = driver.page_source
 
                 driver.quit()
@@ -121,18 +142,27 @@ class Crawler:
                 }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
                 status_code = response.status_code
                 source = response.text
+                downloadable = url_is_downloadable(response.headers)
+
+                if downloadable:
+                    return None, 406
+
+                if status_code == 403 or status_code == 406:
+                    response = requests.request("GET", url, headers={
+                        'Accept-Language': 'en-US,en',
+                        'User-Agent': FAKE_USER_AGENT
+                    }, timeout=self.SESSION_TIMEOUT, verify=self.VERIFY)
+                    status_code = response.status_code
+                    source = response.text
 
         except Exception as e:
-            if self.crawl_javascript:
+            if self.crawl_javascript and driver:
                 driver.quit()
 
             print(e)
-            return None
+            return None, 404
 
-        if status_code >= 400:
-            return None
-
-        return source
+        return source, status_code
 
     def save_images(self, images):
         if images and len(images) > 0:
@@ -159,7 +189,8 @@ class Crawler:
         for s in soup_html(['script', 'style']):
             s.decompose()
 
-        self.corpus += " " + ' '.join(soup_html.stripped_strings).lower()
+        self.corpus += normalize_unicode_text(" " +
+                                              ' '.join(soup_html.stripped_strings).lower())
 
     def get_website_links(self, domain, soup):
         if domain not in self.SPECIAL_CRAWLING:
@@ -173,7 +204,7 @@ class Crawler:
             try:
                 return [link["url"] for link in json.loads(script_contents[0])[
                     "props"]["pageProps"]["account"]["links"] if "url" in link]
-            except Exception as e:
+            except Exception:
                 return []
         elif "biglink.to" in domain or "withkoji.com" in domain:
             return []
@@ -194,13 +225,12 @@ class Crawler:
         # all URLs of `url`
         urls = set()
         # domain name of the URL without the protocol
+        url = unquote(url)
         domain_name = urlparse(url).hostname
 
-        html = self.confirm_url(url)
+        html, status_code = self.confirm_url(url)
 
-        if html is None:
-            if url in self.internal_links:
-                self.internal_links.remove(url)
+        if status_code >= 400 or html is None:
             return []
 
         if '<html' not in html:
@@ -208,7 +238,8 @@ class Crawler:
                           '<!DOCTYPE html><html>', html)
 
         soup = BeautifulSoup(clean_text(html), "lxml")
-        links = self.get_website_links(domain_name, soup)
+        links = [unquote(link)
+                 for link in self.get_website_links(domain_name, soup) if link is not None]
 
         description, keywords, title = filter_meta_data(soup, url)
         self.save_title(title)
@@ -264,7 +295,6 @@ class Crawler:
         return urls
 
     def check_external_links(self):
-        external_links = self.external_links
 
         self.external_links = filter(validators.url, self.external_links)
 
@@ -285,71 +315,136 @@ class Crawler:
 
         self.check_external_links()
 
-    def get_combinations(self, terms):
-        # strip_chars = " -_"
-        terms = [re.sub(r"(\W|_)+", " ", term.lower()).strip()
-                 for term in terms]
-        term_comb = set(terms)
+    @staticmethod
+    def get_combinations(expressions):
+        expressions = [re.sub(r"(\W|_)+", " ", expression.lower()).strip()
+                       for expression in expressions]
+        expression_combinations = set(expressions)
+        token_combinations = set()
+        weight_sum = 0
 
-        for term in terms:
-            term_comb.add(term.replace("&", "and"))
+        for expression in expressions:
+            expression_combinations.add(expression.replace("&", "and"))
 
-        term_tuples = []
+        for expression in expression_combinations:
+            tokens = expression.split(" ")
 
-        # Dictionary with regex and the number of chars
+            if len(tokens) > 1:
+                token_combinations.update(
+                    [token for token in tokens if len(token) > 3])
 
-        for term in term_comb:
-            size = len(term)
-            regex_term = "(?b)(\\b" + term.replace(" ",
-                                                   "){e<=2}(\w){0,2}((\W|_)|(\W|_)(\w)*(\W|_)){0,2}(\w){0,2}(?b)(") + "\\b){e<=2}"
+        expression_tuples = []
 
-            term_tuples.append((regex_term, size))
+        for expression in expression_combinations:
+            length = len(expression)
+            regex_expression = "(?b)(\\b" + expression.replace(" ",
+                                                               "){e<=2}(\w){0,2}((\W|_)|(\W|_)(\w)*(\W|_)){0,2}(\w){0,2}(?b)(") + "\\b){e<=2}"
 
-        return term_tuples
+            expression_tuples.append((regex_expression, length, 1.0))
+            weight_sum += 1.0
 
-    def calculate_score(self, original_length, match_length, num_errors):
+        for token in token_combinations:
+            length = len(token)
+            regex_expression = "(?b)(\\b" + token + "\\b){e<=1}"
+            weight = 0.25 - (zipf_frequency(token, 'en') / 32.0)
+
+            expression_tuples.append((regex_expression, length, weight))
+            weight_sum += weight
+
+        return [(expression, length, weight / weight_sum) for expression, length, weight in expression_tuples]
+
+    @staticmethod
+    def calculate_score(original_length, match_length, num_errors):
         abs_diff = abs(original_length - match_length)
 
-        return original_length / (original_length + abs_diff + num_errors)
+        return original_length / (original_length + abs_diff + 2 * num_errors)
 
-    def get_score(self, search_term, length, string):
-        match = re.search(search_term, string)
+    def get_score(self, search_expression, length, string):
+        match = re.search(search_expression, string)
 
         if match:
-            #         print(f"""
-            # The search term:
-            #     {search_term}
-            # Matched with:
-            #     {match[0]}
-            # Allowing the following errors:
-            #     {match.fuzzy_changes}
-            # With a score of:
-            #     {self.calculate_score(length, len(match[0]), sum(match.fuzzy_counts))}
-            #         """)
+            # print(f"""
+            #     The search expression:
+            #         {search_expression}
+            #     Matched with:
+            #         {match[0]}
+            #     Allowing the following errors:
+            #         {match.fuzzy_changes}
+            #     With a score of:
+            #         {self.calculate_score(length, len(match[0]), sum(match.fuzzy_counts))}
+            # """)
 
             return self.calculate_score(length, len(match[0]), sum(match.fuzzy_counts))
 
         return 0
 
-    def check_for_matches(self, terms):
-        search_terms = self.get_combinations(terms)
-        match_scores = []
+    def get_expression_score(self, expression):
+        search_expressions = self.get_combinations([expression])
+        score = 0
 
-        for search_term, length in search_terms:
+        for search_expression, length, weight in search_expressions:
 
             matches = {
-                "name": self.get_score(search_term, length, self.name.lower()),
-                "titles": self.get_score(search_term, length, self.title.lower()),
-                "description": self.get_score(search_term, length, self.description.lower()),
-                "internal links": self.get_score(search_term, length, " ".join(self.internal_links).lower()),
-                "external links": self.get_score(search_term, length, " ".join(self.external_links).lower()),
-                "emails": self.get_score(search_term, length, " ".join(self.emails).lower()),
-                "corpus": self.get_score(search_term, length, self.corpus.lower()),
+                "name": self.get_score(search_expression, length, self.name.lower()),
+                "titles": self.get_score(search_expression, length, self.title.lower()),
+                "description": self.get_score(search_expression, length, self.description.lower()),
+                "keywords": self.get_score(search_expression, length, " ".join(self.keywords).lower()),
+                "internal links": self.get_score(search_expression, length, " ".join(self.internal_links).lower()),
+                "external links": self.get_score(search_expression, length, " ".join(self.external_links).lower()),
+                "emails": self.get_score(search_expression, length, " ".join(self.emails).lower()),
+                "corpus": self.get_score(search_expression, length, self.corpus.lower()),
             }
 
-            match_scores.append(sum(matches.values()))
-            # pprint(matches)
+            # pprint(
+            #     f"Search expression: {search_expression} with score {sum(matches.values()) * weight}")
 
-        pprint(match_scores)
+            score += (sum(matches.values()) / 8.0) * weight
+
+        return score
+
+    def check_for_matches(self, search_words):
+        match_scores = []
+
+        for search_word in search_words:
+            match_scores.append(self.get_expression_score(search_word))
+
+        # pprint(match_scores)
 
         return match_scores
+
+    def extract_entitites(self):
+        start_time = time.time()
+        nlp = spacy.load("en_core_web_sm",
+                         disable=["tok2vec", "tagger", "parser", "attribute_ruler", "lemmatizer"])
+        print("Load time: %s seconds" % (time.time() - start_time))
+
+        entities = {
+            "person": set(),
+            "norp": set(),
+            "fac": set(),
+            "organization": set(),
+            "location": set(),
+            "places": set(),
+            "product": set(),
+            "event": set(),
+            "art": set(),
+            "law": set(),
+            "language": set(),
+            "date": set(),
+            "time": set(),
+            "percent": set(),
+            "money": set(),
+            "quantity": set(),
+            "ordinal": set(),
+            "cardinal": set()
+        }
+
+        doc = nlp(self.corpus)
+
+        for entity in doc.ents:
+            entities[map_entity_to_name(entity.label_)].add(entity.text)
+
+        entities = {label: list(res) for label, res in entities.items()}
+
+        with open(f'entities.json', "w") as f:
+            json.dump(entities, f)

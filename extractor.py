@@ -1,21 +1,15 @@
+import json
 import os
 import re
-import sys
-import json
-import nltk
-import numpy
-import tweepy
-import pickle
-import logging
 
-from pprint import pprint
+import nltk
+import tweepy
 from bloom_filter2 import BloomFilter
 from gensim.corpora import Dictionary
-from gensim.test.utils import datapath
+from gensim.models import EnsembleLda
 from gensim.parsing import preprocessing
-from nltk.tokenize import RegexpTokenizer
-from gensim.models import LdaModel, HdpModel, EnsembleLda
 from nltk.stem.wordnet import WordNetLemmatizer
+from nltk.tokenize import RegexpTokenizer
 
 nltk.download('wordnet')
 nltk.download('omw-1.4')
@@ -26,7 +20,7 @@ if False:
 
 
 def remove_urls(tweet): return re.sub(
-    r'(https?:\/\/)(\s)*(www\.)?(\s)*((\w|\s)+\.)*([\w\-\s]+\/)*([\w\-]+)((\?)?[\w\s]*=\s*[\w\%&]*)*', "", tweet, flags=re.MULTILINE)
+    r'(https?:/\/(\s)*(www\.)?(\s)*((\w|\s)+\.)*([\w\-\s]+\//([\w\-]+)((\?)?[\w\s]*=\s*[\w\%&]*)*', "", tweet, flags=re.MULTILINE)
 
 
 def remove_mentions(tweet): return re.sub(
@@ -96,10 +90,12 @@ class Extractor:
             print(f"Error initializing: {e}")
             self.id = None
 
-    def valid_tweet(self, tweet):
+    @staticmethod
+    def valid_tweet(tweet):
         return 'lang' not in tweet or ('lang' in tweet and tweet['lang'] == "en")
 
-    def process_text(self, text):
+    @staticmethod
+    def process_text(text):
         return preprocessing.preprocess_string(text, filters=[
             remove_urls, remove_sanitized_chars, remove_retweet_tag, remove_mentions, str.lower, preprocessing.strip_tags, preprocessing.strip_punctuation, preprocessing.strip_numeric, preprocessing.strip_non_alphanum, preprocessing.strip_multiple_whitespaces, preprocessing.remove_stopwords, preprocessing.strip_short])
 
@@ -161,7 +157,8 @@ class Extractor:
 
         return entities
 
-    def retweet_id(self, tweet):
+    @staticmethod
+    def retweet_id(tweet):
         if 'referenced_tweets' not in tweet:
             return -1
 
@@ -192,7 +189,8 @@ class Extractor:
             'retweet': is_retweet
         }
 
-    def write_to_file(self, file, s, end="\n"):
+    @staticmethod
+    def write_to_file(file, s, end="\n"):
         if len(s) > 0:
             file.write(s + end)
 
@@ -252,14 +250,16 @@ class Extractor:
             tweet_count += res.meta['result_count']
             next_token = res.meta['next_token']
 
-    def load_tweets(self, word_file):
+    @staticmethod
+    def load_tweets(word_file):
         if not os.path.exists(word_file):
             return None
 
         with open(word_file, 'r', encoding='UTF8') as f:
             return f.readlines()
 
-    def merge_docs(self, docs, n):
+    @staticmethod
+    def merge_docs(docs, n):
         for i in range(0, len(docs), n):
             yield preprocessing.strip_short(" ".join(docs[i:i + n]).replace('\n', ''))
 

@@ -1,26 +1,64 @@
-import re
 import json
 import locale
-import requests
-
-from .filters import FILTER_MAPS
-from requests.utils import default_user_agent
+import re
+import unicodedata
 from urllib.parse import urljoin, urlparse
 
+from requests.utils import default_user_agent
+
+from crawler.filters import FILTER_MAPS
 
 CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')
-FAKE_USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/603.1.20 (KHTML, like Gecko) Version/10.1 Safari/603.1.20'
+FAKE_USER_AGENT = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/41.0.2272.96 Safari/537.36'
+DOWNLOADABLE_FORMATS = ['audio', 'video', 'image', 'font', 'application/gzip', 'application/vnd.rar', 'application/x-7z-compressed',
+                        'application/zip', 'application/x-tar', 'application/pdf', 'text/csv']
+entity_map = {
+    "PERSON": "person",
+    "NORP": "norp",
+    "FAC": "fac",
+    "ORG": "organization",
+    "GPE": "location",
+    "LOC": "places",
+    "PRODUCT": "product",
+    "EVENT": "event",
+    "WORK_OF_ART": "art",
+    "LAW": "law",
+    "LANGUAGE": "language",
+    "DATE": "date",
+    "TIME": "time",
+    "PERCENT": "percent",
+    "MONEY": "money",
+    "QUANTITY": "quantity",
+    "ORDINAL": "ordinal",
+    "CARDINAL":  "cardinal"
+}
 
 
 def standardize_url(url):
     return url[:-1] + url[-1:].replace("/", "")
 
 
+def normalize_unicode_text(text):
+    return unicodedata.normalize("NFKD", text).encode(
+        "ascii", errors='ignore').decode()
+
+
+def map_entity_to_name(entity_code):
+    if entity_code in entity_map.keys():
+        return entity_map[entity_code]
+
+
 def link_belongs_to_domain(link, domain):
     link_domain = urlparse(link).hostname
 
     return bool(re.search(r"(?:[^/:]+\.)?" + domain, link_domain)) or bool(re.search(r"(?:[^/:]+\.)?" + link_domain, domain))
+
+
+def url_is_downloadable(headers):
+    Content_Type = headers.get("Content-Type", "")
+
+    return bool([file_format for file_format in DOWNLOADABLE_FORMATS if file_format in Content_Type])
 
 
 """
