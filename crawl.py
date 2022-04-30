@@ -2,17 +2,16 @@ import csv
 import json
 import os
 import random
-import re
 import time
-import unicodedata
 from multiprocessing import get_context
 from urllib.parse import urlparse
 
 import numpy
 import tweepy
 from decouple import config
+
 from crawler.crawler import Crawler
-from gensim.parsing.preprocessing import strip_multiple_whitespaces
+from utils import process_twitter_name
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
 
@@ -133,8 +132,7 @@ def get_negative_matches(mapping, rows):
             random_handle = handle
 
             while random_handle == handle:
-                random_handle = usernames[(
-                                                  index + random.randint(0, 10)) % len(usernames)]
+                random_handle = usernames[(index + random.randint(0, 10)) % len(usernames)]
 
             random_username = mapping[random_handle]
 
@@ -172,24 +170,13 @@ def save_matches():
         get_negative_matches(mapping, reader)
 
 
-def process_username(username):
-    username = unicodedata.normalize("NFKD", username).encode(
-        "ascii", errors='ignore').decode()
-
-    username = re.sub(r"\(.*\)", "", username)
-    username = re.sub(r"([#@])\w*\b", "", username)
-    username = re.sub(r"\|", "", username)
-
-    return strip_multiple_whitespaces(username)
-
-
 def batch_request(twitter_handles):
     users = api.get_users(usernames=twitter_handles).data
 
     res = {}
 
     for user in users:
-        res[user['username']] = process_username(user["name"])
+        res[user['username']] = process_twitter_name(user["name"])
 
     return res
 

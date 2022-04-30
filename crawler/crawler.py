@@ -14,8 +14,9 @@ from selenium import webdriver
 from selenium.webdriver.chromium.options import ChromiumOptions as Options
 from wordfreq import zipf_frequency
 
-from crawler.utils import standardize_url, url_is_downloadable, map_entity_to_name, normalize_unicode_text, filter_amp_data, \
-    filter_meta_data, clean_text, link_belongs_to_domain, FAKE_USER_AGENT
+from crawler.utils import map_entity_to_name, filter_amp_data, \
+    filter_meta_data, clean_text, FAKE_USER_AGENT
+from utils.utils import standardize_url, normalize_unicode_text, link_belongs_to_domain, url_is_downloadable
 
 chromedriver_autoinstaller.install()
 
@@ -383,7 +384,6 @@ class Crawler:
         score = 0
 
         for search_expression, length, weight in search_expressions:
-
             matches = {
                 "name": self.get_score(search_expression, length, self.name.lower()),
                 "titles": self.get_score(search_expression, length, self.title.lower()),

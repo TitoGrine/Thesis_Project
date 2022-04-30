@@ -1,5 +1,4 @@
 import os
-import re
 import json
 import nltk
 import tweepy
@@ -12,30 +11,12 @@ from gensim.parsing import preprocessing
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.wordnet import WordNetLemmatizer
 
+from utils import process_twitter_text
+
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
-
-
-def remove_urls(tweet): return re.sub(
-    r'(https?:/\/(\s)*(www\.)?(\s)*((\w|\s)+\.)*([\w\-\s]+\//([\w\-]+)((\?)?[\w\s]*=\s*[\w\%&]*)*', "", tweet,
-    flags=re.MULTILINE)
-
-
-def remove_mentions(tweet): return re.sub(
-    r'@\w+', "", tweet, flags=re.MULTILINE)
-
-
-def remove_retweet_tag(tweet): return re.sub(
-    r'(^|\b)RT\b', "", tweet, flags=re.MULTILINE)
-
-
-def remove_sanitized_chars(tweet): return re.sub(
-    r'&\w+', "", tweet, flags=re.MULTILINE)
-
-
-def remove_short(tweet): return preprocessing.strip_short(tweet, minsize=3)
 
 
 class Extractor:
@@ -70,7 +51,7 @@ class Extractor:
             self.id = user.id
             self.name = user.name
             self.location = user.location
-            self.description = self.process_text(user.description)
+            self.description = process_twitter_text(user.description)
             self.extract_profile_urls(user.entities)
 
     def force_init(self, handle, data_folder):
@@ -81,7 +62,7 @@ class Extractor:
             self.id = user.data.id
             self.name = user.data.name
             self.location = user.data.location
-            self.description = self.process_text(user.data.description)
+            self.description = process_twitter_text(user.data.description)
             self.extract_profile_urls(user.data.entities)
         except Exception as e:
             print(f"Error initializing: {e}")
@@ -90,14 +71,6 @@ class Extractor:
     @staticmethod
     def valid_tweet(tweet):
         return 'lang' not in tweet or ('lang' in tweet and tweet['lang'] == "en")
-
-    @staticmethod
-    def process_text(text):
-        return preprocessing.preprocess_string(text, filters=[
-            remove_urls, remove_sanitized_chars, remove_retweet_tag, remove_mentions, str.lower,
-            preprocessing.strip_tags, preprocessing.strip_punctuation, preprocessing.strip_numeric,
-            preprocessing.strip_non_alphanum, preprocessing.strip_multiple_whitespaces, preprocessing.remove_stopwords,
-            preprocessing.strip_short])
 
     def extract_profile_urls(self, entities):
         if entities is None:
@@ -183,7 +156,7 @@ class Extractor:
         text = retweets[retweet_id] if is_retweet else data['text']
 
         return {
-            'text': self.process_text(text),
+            'text': process_twitter_text(text),
             'urls': self.extract_tweet_urls(data) if not is_retweet else [],
             # 'entities': self.extract_context_entities(data),
             'retweet': is_retweet
@@ -329,7 +302,7 @@ class Extractor:
             "retweets": retweets_topics
         }
 
-        with open(f'test.json', 'w') as f:
+        with open(f'test/test.json', 'w') as f:
             json.dump(topical_words_state, f)
 
         # with open(f'{self.user_folder}/topical_words.pickle', 'ab+') as f:
