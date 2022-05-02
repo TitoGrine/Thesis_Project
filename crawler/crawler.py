@@ -16,7 +16,7 @@ from wordfreq import zipf_frequency
 
 from crawler.utils import map_entity_to_name, filter_amp_data, \
     filter_meta_data, clean_text, FAKE_USER_AGENT
-from utils.utils import standardize_url, normalize_unicode_text, link_belongs_to_domain, url_is_downloadable
+from src.utils import standardize_url, normalize_unicode_text, link_belongs_to_domain, url_is_downloadable
 
 chromedriver_autoinstaller.install()
 

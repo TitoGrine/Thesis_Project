@@ -8,18 +8,18 @@ structure.
 ```json
 {
   "searching": {
-    "users": "<number of users to try to collect from the tweet search>",
-    "keywords": "[<words to search for in tweets>]",
-    "hashtags": "[<hashtags to search for in tweets>]",
-    "_exclude_": "[<words that can not appear in tweets>]",
-    "_countries_": "[<ISO codes of countries to accept tweets from>]",
-    "_languages_": "[<BCP 47 identifiers of languages accepted for the tweets>]",
-    "_start_time_": "<date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ) of the earliest time from which the tweets can be>"
-    "_end_time_": "<date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ) of the latest time from which the tweets can be>"
+    "users": "(int) <number of users to try to collect from the tweet search>",
+    "keywords": "(array<string>) [<words to search for in tweets>]",
+    "hashtags": "(array<string>) [<hashtags to search for in tweets>]",
+    "_exclude_": "(array<string>) [<words that can not appear in tweets>]",
+    "_countries_": "(array<string>) [<ISO codes of countries to accept tweets from>]",
+    "_languages_": "(array<string>) [<BCP 47 identifiers of languages accepted for the tweets>]",
+    "_start_time_": "(string) <date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ) of the earliest time from which the tweets can be>",
+    "_end_time_": "(string) <date in ISO 8601 format (YYYY-MM-DDTHH:mm:ssZ) of the latest time from which the tweets can be>"
   },
   "discovery": {
-    "keywords": "[<words closely related to the desired domain>]",
-    "tweets_per_user": "<maximum number of tweets to try to extract from each user (includes tweets, replies, quote tweets and retweets)>"
+    "keywords": "(array<string>) [<words closely related to the desired domain>]",
+    "tweets_per_user": "(int) <maximum number of tweets to try to extract from each user (includes tweets, replies, quote tweets and retweets)>"
   },
   "extraction": {
     "_person_": "(boolean) <extract person entities from selected websites>",
@@ -39,10 +39,10 @@ structure.
     "_money_": "(boolean) <extract monetary values from selected websites>",
     "_quantity_": "(boolean) <extract measurements from selected websites>",
     "_ordinal_": "(boolean) <extract ordinal numbers from selected websites>",
-    "_cardinal_": "(boolean) <extract all other numerals from selected websites>",
+    "_cardinal_": "(boolean) <extract all other numerals from selected websites>"
   }
 }
 ```
 
- > All parameters marked with underscores (e.g. `_<param>_`) are optional.
+ > All parameters between underscores (e.g. `_<param>_`) are optional.
 

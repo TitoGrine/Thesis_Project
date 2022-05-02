@@ -10,9 +10,6 @@ from crawler.filters import FILTER_MAPS
 CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')
 FAKE_USER_AGENT = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/41.0.2272.96 Safari/537.36'
-DOWNLOADABLE_FORMATS = ['audio', 'video', 'image', 'font', 'application/gzip', 'application/vnd.rar',
-                        'application/x-7z-compressed',
-                        'application/zip', 'application/x-tar', 'application/pdf', 'text/csv']
 entity_map = {
     "PERSON": "person",
     "NORP": "norp",

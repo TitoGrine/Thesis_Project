@@ -11,7 +11,7 @@ from gensim.parsing import preprocessing
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem.wordnet import WordNetLemmatizer
 
-from utils import process_twitter_text
+from src.utils import process_twitter_text
 
 nltk.download('wordnet')
 nltk.download('omw-1.4')

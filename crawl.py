@@ -11,7 +11,7 @@ import tweepy
 from decouple import config
 
 from crawler.crawler import Crawler
-from utils import process_twitter_name
+from src.utils import process_twitter_name
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
 
