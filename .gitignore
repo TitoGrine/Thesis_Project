@@ -136,6 +136,7 @@ sources/
 data/
 websites/
 results/
+output/
 *.txt
 *.json
 *.html

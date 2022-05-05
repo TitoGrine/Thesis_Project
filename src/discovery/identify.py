@@ -1,4 +1,5 @@
 from src.utils import get_configuration_section
+from .analyze import analyze_profiles
 
 
 def get_discovery_config() -> tuple:
@@ -25,5 +26,7 @@ def get_discovery_config() -> tuple:
     return keywords, tweets_per_user
 
 
-def identify_related_profiles(ids) -> set[str]:
+def identify_related_profiles(ids) -> list[str]:
     keywords, tweets_per_user = get_discovery_config()
+
+    return analyze_profiles(ids, keywords, tweets_per_user)

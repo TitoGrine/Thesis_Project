@@ -137,13 +137,13 @@ def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
     return ids
 
 
-def get_initial_users() -> set[str]:
+def get_initial_users() -> list[str]:
     """Uses the Twitter API and the configurations present in the searching section of the config file to return a
     set of user IDs from potentially relevant profiles
 
     Returns
     -------
-    set[str]
+    list[str]
         Twitter users' IDs
     """
     users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config()
@@ -152,4 +152,4 @@ def get_initial_users() -> set[str]:
 
     ids = search_tweets(users, query, start_time, end_time)
 
-    return ids
+    return list(ids)

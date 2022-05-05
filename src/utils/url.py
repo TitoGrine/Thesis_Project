@@ -5,6 +5,8 @@ from .constants import DOWNLOADABLE_FORMATS
 
 
 def standardize_url(url):
+    url = url.strip()
+    
     return url[:-1] + url[-1:].replace("/", "")
 
 
