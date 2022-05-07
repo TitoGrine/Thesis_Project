@@ -5,7 +5,7 @@ from .constants import *
 from .general import chunks, merge_docs, flatten
 
 # Util function for dealing with URLs
-from .url import standardize_url, link_belongs_to_domain, url_is_downloadable
+from .url import standardize_url, link_from_host, url_is_downloadable
 
 # Util functions for filtering elements in text
 from .text import normalize_unicode_text, remove_urls, remove_mentions, remove_retweet_tag, remove_sanitized_chars, \
@@ -16,3 +16,12 @@ from .twitter import valid_tweet, get_retweet_id, process_twitter_text, process_
 
 # Functions to deal with the configuration file
 from .config import get_configuration_section
+
+# Functions for crawling
+from .crawler import get_driver, clean_html
+
+# Functions modified from Lassie
+from .lassie import filter_meta_data, filter_amp_data
+
+# From for website data extraction
+from .extraction import map_entity_to_name

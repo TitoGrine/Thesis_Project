@@ -1,20 +1,20 @@
 import re
 
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 from .constants import DOWNLOADABLE_FORMATS
 
 
 def standardize_url(url):
     url = url.strip()
-    
+
     return url[:-1] + url[-1:].replace("/", "")
 
 
-def link_belongs_to_domain(link, domain):
-    link_domain = urlparse(link).hostname
+def link_from_host(link, host):
+    link_host = urlparse(link).hostname
 
-    return bool(re.search(r"(?:[^/:]+\.)?" + domain, link_domain)) or bool(
-        re.search(r"(?:[^/:]+\.)?" + link_domain, domain))
+    return bool(re.search(r"(?:[^/:]+\.)?" + host, link_host)) or bool(
+        re.search(r"(?:[^/:]+\.)?" + link_host, host))
 
 
 def url_is_downloadable(headers):

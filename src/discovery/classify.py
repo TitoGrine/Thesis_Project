@@ -53,14 +53,14 @@ def get_topic_words(words):
             for topic_distribution, coherence in top_topics]
 
 
-def calculate_similarity_score(keywords_embedding, words_embedding, word_model):
-    if len(keywords_embedding) or len(words_embedding) == 0:
-        return -1
+def calculate_similarity_score(keywords_embedding, words_embedding, word_model) -> float:
+    if len(keywords_embedding) == 0 or len(words_embedding) == 0:
+        return -1.0
 
     similarity_scores = []
 
     for keyword_embedding in keywords_embedding:
-        best_similarity = -1
+        best_similarity = -1.0
 
         for word_embedding in words_embedding:
             if len(word_embedding) <= 0:
@@ -79,15 +79,21 @@ def calculate_similarity_score(keywords_embedding, words_embedding, word_model):
     return numpy.average(similarity_scores[discard_index:])
 
 
-def calculate_profile_score(keywords, word_model, description, tweets, retweets):
+def calculate_profile_score(keywords, word_model, description, tweets, retweets) -> float:
     tweets_topic_words = get_topic_words(tweets)
     retweets_topic_words = get_topic_words(retweets)
 
-    description_score = calculate_similarity_score(keywords, [get_words_embedding(description, word_model)], word_model)
-    tweets_score = calculate_similarity_score(keywords,
-                                              [get_words_embedding(words, word_model) for words in tweets_topic_words],
-                                              word_model)
-    retweets_score = calculate_similarity_score(keywords, [get_words_embedding(words, word_model) for words in
-                                                           retweets_topic_words], word_model)
+    scores = [calculate_similarity_score(keywords, [get_words_embedding(description, word_model)], word_model),
+              calculate_similarity_score(keywords,
+                                         [get_words_embedding(words, word_model) for words in tweets_topic_words],
+                                         word_model),
+              calculate_similarity_score(keywords,
+                                         [get_words_embedding(words, word_model) for words in retweets_topic_words],
+                                         word_model)]
 
-    return numpy.average([description_score, tweets_score, retweets_score])
+    scores = [score for score in scores if score >= 0]
+
+    if len(scores) == 0:
+        return 0
+
+    return numpy.average(scores)

@@ -1,41 +1,10 @@
 import json
 import locale
-import re
-from urllib.parse import urljoin
 
 from requests.utils import default_user_agent
-
-from crawler.filters import FILTER_MAPS
-
-CLEANER = re.compile(r'[\r\n\t]')
-RE_INT = re.compile(r'\d+')
-FAKE_USER_AGENT = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/41.0.2272.96 Safari/537.36'
-entity_map = {
-    "PERSON": "person",
-    "NORP": "norp",
-    "FAC": "fac",
-    "ORG": "organization",
-    "GPE": "location",
-    "LOC": "places",
-    "PRODUCT": "product",
-    "EVENT": "event",
-    "WORK_OF_ART": "art",
-    "LAW": "law",
-    "LANGUAGE": "language",
-    "DATE": "date",
-    "TIME": "time",
-    "PERCENT": "percent",
-    "MONEY": "money",
-    "QUANTITY": "quantity",
-    "ORDINAL": "ordinal",
-    "CARDINAL": "cardinal"
-}
-
-
-def map_entity_to_name(entity_code):
-    if entity_code in entity_map.keys():
-        return entity_map[entity_code]
-
+from urllib.parse import urljoin
+from .filters import FILTER_MAPS
+from .constants import CLEANER, FAKE_USER_AGENT
 
 """
     Functions taken from the lassie library: https://github.com/michaelhelmick/lassie
@@ -126,12 +95,6 @@ def find_image_tag_data(source, soup, url):
 
 
 def find_all_images(soup, url):
-    """This method finds all images in the web page content
-    :param soup: BeautifulSoup instance to find meta tags
-    :type soup: instance
-    :param data: The response dictionary to manipulate
-    :type data: (dict)
-    """
     all_images = soup.find_all('img')
 
     images = find_image_tag_data("canonical", soup, url)
@@ -218,14 +181,6 @@ def filter_amp_data(soup, url):
 
 
 def filter_meta_data(soup, url=None, source="generic"):
-    """This method filters the web page content for meta tags that match patterns given in the ``FILTER_MAPS``
-    :param source: The key of the meta dictionary in ``FILTER_MAPS['meta']``
-    :type source: string
-    :param soup: BeautifulSoup instance to find meta tags
-    :type soup: instance
-    :param data: The response dictionary to manipulate
-    :type data: (dict)
-    """
     meta = FILTER_MAPS['meta'][source]
     meta_map = meta['map']
 

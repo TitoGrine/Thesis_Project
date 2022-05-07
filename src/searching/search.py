@@ -63,9 +63,9 @@ def build_query(keywords, hashtags, exclude, countries, languages) -> str:
     str
         Twitter API compliant query
     """
-    keywords = " OR ".join(keywords)
+    keywords = " OR ".join([f"\"{keyword}\"" for keyword in keywords])
     hashtags = " OR ".join([f"#{hashtag}" for hashtag in hashtags])
-    exclude = " ".join([f"-{token}" for token in exclude])
+    exclude = " ".join([f"-\"{token}\"" for token in exclude])
     countries = " OR ".join([f"place_country:{ISO_code}" for ISO_code in countries])
     languages = " OR ".join([f"lang:{lang}" for lang in languages])
 
@@ -152,4 +152,54 @@ def get_initial_users() -> list[str]:
 
     ids = search_tweets(users, query, start_time, end_time)
 
-    return list(ids)
+    return list(ids)[:users]
+
+
+def extract_info(res, results):
+    tweets = res.data
+    users = res.includes.get('users', [])
+
+    for tweet, user in zip(tweets, users):
+        results.append({
+            'id': user.get('id', "Error: no ID in user object"),
+            'username': user.get('username', "Error: no username in user object"),
+            'name': user.get('name', "Error: no name in user object"),
+            'tweet': tweet.get('text', "Error: no text in tweet object")
+        })
+
+
+def test_search_tweets(query, start_time=None, end_time=None) -> list[dict]:
+    results = []
+    call_count = 0
+    next_token = None
+
+    while len(results) < 10 and call_count < 2:
+        try:
+            res = api.search_all_tweets(query, expansions="author_id", user_fields=["id", "username", "name", "url"],
+                                        sort_order="recency", start_time=start_time, end_time=end_time, max_results=10,
+                                        next_token=next_token)
+        except TooManyRequests:
+            sleep(1)
+            continue
+
+        call_count += 1
+
+        if res.meta.get("result_count") == 0:
+            break
+
+        extract_info(res, results)
+
+        if 'next_token' not in res.meta:
+            break
+
+        next_token = res.meta['next_token']
+
+    return results
+
+
+def test_query_results() -> list[dict]:
+    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config()
+
+    query = build_query(keywords, hashtags, exclude, countries, languages)
+
+    return test_search_tweets(query, start_time, end_time)
