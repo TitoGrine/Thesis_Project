@@ -29,4 +29,5 @@ def get_discovery_config() -> tuple:
 def identify_related_profiles(ids) -> list[str]:
     keywords, tweets_per_user = get_discovery_config()
 
-    return analyze_profiles(ids, keywords, tweets_per_user)
+    return [potential_profile for potential_profile in analyze_profiles(ids, keywords, tweets_per_user) if
+            potential_profile is not None]

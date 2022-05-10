@@ -6,12 +6,15 @@ nlp = spacy.load("en_core_web_sm", disable=["tok2vec", "tagger", "parser", "attr
 
 
 def extract_link_entities(corpus, extraction_params):
-    entities = {key: set() for key, _ in extraction_params.items()}
+    entities = {key.replace("_", ""): set() for key, _ in extraction_params.items()}
 
-    doc = nlp(corpus)
+    doc = nlp(corpus[:1000000])
 
     for entity in doc.ents:
-        entities[map_entity_to_name(entity.label_)].add(entity.text)
+        try:
+            entities[map_entity_to_name(entity.label_)].add(entity.text)
+        except KeyError as e:
+            print(f"Error retrieving key from entity map: {e}")
 
     entities = {ley: list(value) for ley, value in entities.items()}
 

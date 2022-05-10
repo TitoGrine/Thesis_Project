@@ -185,10 +185,10 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
 
 def aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, links_visited,
                 enable_javascript):
-    if links_visited > MAX_CRAWL_DEPTH:
+    if links_visited[0] > MAX_CRAWL_DEPTH:
         return
 
-    links_visited += 1
+    links_visited[0] += 1
 
     for new_link in parse_website(link, link_info, internal_links, external_links, emails, phone_numbers,
                                   enable_javascript):
@@ -220,10 +220,10 @@ def crawl_link(link) -> dict:
 
     internal_links.add(link)
 
-    aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, 0, False)
+    aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, [0], False)
 
     if len(internal_links) <= 1:
-        aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, 0, True)
+        aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, [0], True)
 
     link_info['internal_links'] = list(internal_links)
     link_info['external_links'] = list(external_links)
@@ -234,7 +234,6 @@ def crawl_link(link) -> dict:
 
 
 def crawl_links(links, extraction_params, profile_names) -> list[dict]:
-    print("Crawling links!", flush=True)
     link_bf = BloomFilter()
     links_info = []
 
@@ -244,8 +243,6 @@ def crawl_links(links, extraction_params, profile_names) -> list[dict]:
         link_queue.append(link)
         link_bf.add(link)
 
-    print(f"Link queue: {link_queue}", flush=True)
-
     while len(link_queue) > 0:
         link = link_queue.pop()
 
@@ -253,9 +250,11 @@ def crawl_links(links, extraction_params, profile_names) -> list[dict]:
 
         link_score = calculate_link_profile_relatedness(link_info, profile_names)
 
-        print(f"Score is {link_score}", flush=True)
+        for internal_link in link_info.get('internal_links', []):
+            if internal_link in link_queue:
+                link_queue.remove(internal_link)
 
-        if link_score < 0:  # WEBSITE_RELATEDNESS_THRESHOLD:
+        if link_score < WEBSITE_RELATEDNESS_THRESHOLD:
             continue
 
         link_info['score'] = "{:.3f}".format(link_score)
@@ -264,7 +263,7 @@ def crawl_links(links, extraction_params, profile_names) -> list[dict]:
             for external_link in link_info.get('external_links', []):
                 if external_link not in link_bf:
                     link_queue.append(external_link)
-        else:
+
             link_info['entities'] = extract_link_entities(link_info.get('corpus', ""), extraction_params)
 
         link_info.pop('corpus')

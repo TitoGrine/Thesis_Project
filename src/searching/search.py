@@ -73,7 +73,7 @@ def build_query(keywords, hashtags, exclude, countries, languages) -> str:
 
 
 def extract_ids(res, ids):
-    """Adds the Twitter user IDs from the Response res to the ids set
+    """Adds the Twitter user IDs from the Response res to the ids set if the user has enough tweets
 
     Parameters
     ----------
@@ -85,7 +85,10 @@ def extract_ids(res, ids):
     users = res.includes.get('users') or []
 
     for user in users:
-        ids.add(user['id'])
+        public_metrics = user.get('public_metrics', [])
+
+        if public_metrics.get('tweet_count', 0) > 500:
+            ids.add(user['id'])
 
 
 def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
@@ -115,9 +118,9 @@ def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
 
     while len(ids) < num_users and call_count < max_calls:
         try:
-            res = api.search_all_tweets(query, expansions="author_id", user_fields=["id"], sort_order="recency",
-                                        start_time=start_time, end_time=end_time, max_results=max_results,
-                                        next_token=next_token)
+            res = api.search_all_tweets(query, expansions="author_id", user_fields=["id", "public_metrics"],
+                                        sort_order="recency", start_time=start_time, end_time=end_time,
+                                        max_results=max_results, next_token=next_token)
         except TooManyRequests:
             sleep(1)
             continue

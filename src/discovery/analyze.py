@@ -43,7 +43,7 @@ def analyze_profile(response, keywords, tweets_per_user, word_model):
 
     score = calculate_profile_score(keywords, word_model, description, tweets, retweets)
 
-    if score > 0:  # TOPIC_SIMILARITY_THRESHOLD:
+    if score > TOPIC_SIMILARITY_THRESHOLD and len(profile_info.get('links', [])) > 0:
         profile_info['score'] = "{:.3f}".format(score)
         save_profile(profile_info)
 

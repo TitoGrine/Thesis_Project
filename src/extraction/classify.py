@@ -72,6 +72,8 @@ def calculate_expression_score(expression, link_info):
 
         score += (sum(matches) / 8.0) * weight
 
+    return score
+
 
 def calculate_link_profile_relatedness(link_info, profile_names):
     score = 0

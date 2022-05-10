@@ -1,4 +1,5 @@
 import os.path
+import shutil
 
 from multiprocessing import get_context
 
@@ -29,6 +30,13 @@ def get_extraction_config() -> dict:
     return extraction_config
 
 
+def delete_profile_temp_dir(profile_identifier):
+    profile_dir = f"{OUTPUT_DIR}/{profile_identifier}"
+
+    if os.path.exists(profile_dir):
+        shutil.rmtree(profile_dir, True)
+
+
 def process_profile_links(profile, extraction_params):
     profile_file = f"{OUTPUT_DIR}/{profile}/{PROFILE_INFO_FILE}"
 
@@ -36,36 +44,46 @@ def process_profile_links(profile, extraction_params):
         print(f"Path {profile_file} doesn't exist.", flush=True)
         return
 
-    print(f"Processing profile {profile}", flush=True)
-    file_mode = "r+" if ".json" in PROFILE_INFO_FILE else "r+b"
+    file_mode = "r" if ".json" in PROFILE_INFO_FILE else "rb"
 
     with open(profile_file, file_mode) as f:
         profile_info = serializer.load(f)
 
-        username = profile_info.get('username')
-        name = process_twitter_name(profile_info.get('name'))
+    if profile_info is None:
+        delete_profile_temp_dir(profile)
+        return
 
-        links = profile_info.get('links')
+    username = profile_info.get('username')
+    name = process_twitter_name(profile_info.get('name'))
 
-        if links is None:
-            print("No links")
-            return
+    links = profile_info.get('links')
 
-        links_info = crawl_links(links, extraction_params, (username, name))
+    if links is None:
+        delete_profile_temp_dir(profile)
+        return
 
-        from pprint import pprint
-        pprint(links_info)
+    links_info = crawl_links(links, extraction_params, (username, name))
 
-        profile_info['links'] = links_info
+    if len(links_info) == 0:
+        delete_profile_temp_dir(profile)
 
-        f.truncate()
+    profile_info['links'] = links_info
 
+    file_mode = file_mode.replace("r", "w")
+
+    with open(profile_file, file_mode) as f:
         serializer.dump(profile_info, f)
 
 
 def process_profiles(profile_identifiers):
     extraction_params = get_extraction_config()
+    results = []
 
     with get_context().Pool() as pool:
         for profile_identifier in profile_identifiers:
-            pool.apply(process_profile_links, (profile_identifier, extraction_params))
+            results.append(pool.apply_async(process_profile_links, (profile_identifier, extraction_params)))
+
+        while True:
+            if all([result.ready() for result in results]):
+                print(f"Error results: {len([result.get() for result in results if not result.successful()])}")
+                break

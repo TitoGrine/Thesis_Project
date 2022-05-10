@@ -8,6 +8,7 @@ PROFILE_INFO_FILE = "profile_info.json"
 
 # Discovery constants
 TOPIC_SIMILARITY_THRESHOLD = 0.275
+MAX_ATTEMPTS = 5
 WORD_MODEL = "word2vec-google-news-300"
 USER_FIELDS = ["description", "entities", "location", "name", "username", "profile_image_url"]
 REFUSE_DOMAINS = ["twitter.com"]
@@ -21,7 +22,7 @@ CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')
 FAKE_USER_AGENT = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/41.0.2272.96 Safari/537.36'
 SESSION_TIMEOUT = 30
-CERTIFICATE_VERIFY = False
+CERTIFICATE_VERIFY = True
 REJECT_TYPES = ["favicon", "twitter:image"]
 SPECIAL_CRAWLING = ["linktr.ee", "lnk.to", "ampl.ink",
                     "biglink.to", "linkgenie.co", "allmylinks.com", "withkoji.com"]

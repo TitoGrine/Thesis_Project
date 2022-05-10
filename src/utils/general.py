@@ -5,7 +5,7 @@ def chunks(lst, n):
 
 def merge_docs(docs, n):
     for i in range(0, len(docs), n):
-        yield " ".join(docs[i:i + n]).replace('\n', '')
+        yield " ".join(docs[i:i + n]).replace('\n', ' ')
 
 
 def flatten(full_list):

@@ -1,3 +1,4 @@
+import json
 import math
 
 import nltk
@@ -9,26 +10,26 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.stem.wordnet import WordNetLemmatizer
 
 from .embedding import get_words_embedding
-from src.utils import merge_docs
+from src.utils import merge_docs, MAX_ATTEMPTS
 
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 
 def get_topic_words(words):
-    docs = list(merge_docs(words, 10))
+    docs = list(merge_docs(words, 5))
 
     tokenizer = RegexpTokenizer(r'\w+')
     lemmatizer = WordNetLemmatizer()
+
+    if len(docs) < 20:
+        return []
 
     docs = [tokenizer.tokenize(doc) for doc in docs]
     docs = [[lemmatizer.lemmatize(token) for token in doc] for doc in docs]
 
     dictionary = Dictionary(docs)
     dictionary.filter_extremes(no_below=0.1, no_above=0.99)
-
-    if len(dictionary) < 10:
-        return []
 
     corpus = [dictionary.doc2bow(doc) for doc in docs]
     # Necessary to use the dictionary
@@ -38,7 +39,7 @@ def get_topic_words(words):
     stable_model = None
     attempt_count = 0
 
-    while stable_model is None and attempt_count < 10:
+    while stable_model is None and attempt_count < MAX_ATTEMPTS:
         model = EnsembleLda(corpus=corpus, id2word=id2word, num_topics=10)
         stable_model = model.generate_gensim_representation()
 
@@ -67,8 +68,8 @@ def calculate_similarity_score(keywords_embedding, words_embedding, word_model) 
                 continue
 
             similarities = numpy.sort(word_model.cosine_similarities(keyword_embedding, word_embedding))
-            # Consider only the top 4 most similar topic words
-            best_similarity = max(best_similarity, numpy.average(similarities))
+            # Consider only the top 5 most similar topic words
+            best_similarity = max(best_similarity, numpy.average(similarities[-5:]))
 
         similarity_scores.append(best_similarity)
 
@@ -93,7 +94,4 @@ def calculate_profile_score(keywords, word_model, description, tweets, retweets)
 
     scores = [score for score in scores if score >= 0]
 
-    if len(scores) == 0:
-        return 0
-
-    return numpy.average(scores)
+    return numpy.average(scores) if len(scores) > 0 else 0
