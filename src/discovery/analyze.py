@@ -1,7 +1,7 @@
+import json
 import os
 import tweepy
 import gensim.downloader as downloader
-
 from decouple import config
 
 from .embedding import get_words_embedding
@@ -49,6 +49,12 @@ def analyze_profile(response, keywords, tweets_per_user, word_model):
 
         # TODO: Perhaps change to id in the future
         return profile_info['username']
+
+
+def batch_request_profiles(ids):
+    responses = api.get_users(ids=ids, user_fields=USER_FIELDS).data
+
+    return [response.data for response in responses]
 
 
 def batch_analyze_profiles(ids, keywords, tweets_per_user, word_model):

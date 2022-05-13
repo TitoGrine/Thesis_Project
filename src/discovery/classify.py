@@ -1,4 +1,4 @@
-import json
+import warnings
 import math
 
 import nltk
@@ -39,11 +39,14 @@ def get_topic_words(words):
     stable_model = None
     attempt_count = 0
 
-    while stable_model is None and attempt_count < MAX_ATTEMPTS:
-        model = EnsembleLda(corpus=corpus, id2word=id2word, num_topics=10)
-        stable_model = model.generate_gensim_representation()
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
 
-        attempt_count += 1
+        while stable_model is None and attempt_count < MAX_ATTEMPTS:
+            model = EnsembleLda(corpus=corpus, id2word=id2word, num_topics=10)
+            stable_model = model.generate_gensim_representation()
+
+            attempt_count += 1
 
     if stable_model is None:
         return []
