@@ -25,10 +25,10 @@ def test():
 def main():
     if os.path.exists("output"):
         shutil.rmtree("output", True)
-        os.mkdir("output")
+
+    os.mkdir("output")
 
     ids = get_initial_users()
-    print(f"Collected {len(ids)} users.")
 
     start_time = time.time()
 
@@ -36,7 +36,8 @@ def main():
 
     end_time = time.time()
     print(
-        "Elapsed time: {:2}:{:2}".format(math.floor((end_time - start_time) / 60), round((end_time - start_time) % 60)))
+        "Elapsed time: {:02d}:{:02d}".format(math.floor((end_time - start_time) / 60),
+                                             round((end_time - start_time) % 60)))
 
     print(f"Identified {len(related_profiles)} potentially related users.")
     # process_profiles(related_profiles)
