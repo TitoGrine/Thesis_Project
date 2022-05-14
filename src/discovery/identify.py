@@ -39,15 +39,12 @@ def identify_related_profiles(ids, spark_context) -> list[str]:
 
     id_chunks = list(chunks(ids, 100))
 
-    profile_responses = flatten([batch_request_profiles(id_chunk) for id_chunk in id_chunks])
+    rdd = spark_context.parallelize(id_chunks)
 
-    rdd = spark_context.parallelize(profile_responses)
+    profile_responses = rdd.flatMap(batch_request_profiles)
 
-    analyzed_profiles = rdd.map(lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_user, word_model_bv.value))
+    analyzed_profiles = profile_responses.map(lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_user, word_model_bv.value))
 
     related_profiles = analyzed_profiles.filter(lambda profile: profile is not None).collect()
 
     return related_profiles
-
-    # return [potential_profile for potential_profile in analyze_profiles(ids, keywords, tweets_per_user) if
-    #         potential_profile is not None]
