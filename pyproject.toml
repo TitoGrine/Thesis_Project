@@ -12,7 +12,7 @@ chromedriver-autoinstaller = "^0.3.1"
 spacy = "^3.2.4"
 numpy = "^1.22.3"
 scipy = "^1.8.0"
-gensim = "^4.1.2"
+gensim = "4.1.2"
 nltk = "^3.7"
 regex = "^2022.4.24"
 requests = "^2.27.1"
@@ -22,6 +22,7 @@ wordfreq = "^3.0.1"
 validators = "^0.18.2"
 python-decouple = "^3.6"
 lxml = "^4.8.0"
+elasticsearch = "^8.2.0"
 
 [tool.poetry.dev-dependencies]
 

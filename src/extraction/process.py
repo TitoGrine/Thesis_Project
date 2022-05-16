@@ -1,10 +1,11 @@
 import os.path
 import shutil
 
+from itertools import repeat
 from multiprocessing import get_context
 
 from .crawl import crawl_links
-from src.utils import get_configuration_section, process_twitter_name, OUTPUT_DIR, PROFILE_INFO_FILE
+from src.utils import get_configuration_section, process_twitter_name, OUTPUT_DIR, PROFILE_INFO_FILE, ES_INDEX
 
 if ".json" in PROFILE_INFO_FILE:
     import json as serializer
@@ -64,26 +65,27 @@ def process_profile_links(profile, extraction_params):
 
     links_info = crawl_links(links, extraction_params, (username, name))
 
-    if len(links_info) == 0:
-        delete_profile_temp_dir(profile)
+    # if len(links_info) == 0:
+    #     delete_profile_temp_dir(profile)
 
     profile_info['links'] = links_info
 
-    file_mode = file_mode.replace("r", "w")
+    # file_mode = file_mode.replace("r", "w")
 
-    with open(profile_file, file_mode) as f:
-        serializer.dump(profile_info, f)
+    # with open(profile_file, file_mode) as f:
+    #     serializer.dump(profile_info, f)
+    return profile_info
 
 
 def process_profiles(profile_identifiers):
     extraction_params = get_extraction_config()
-    results = []
 
     with get_context().Pool() as pool:
-        for profile_identifier in profile_identifiers:
-            results.append(pool.apply_async(process_profile_links, (profile_identifier, extraction_params)))
+        results = pool.starmap(process_profile_links, zip(profile_identifiers, repeat(extraction_params)))
 
-        while True:
-            if all([result.ready() for result in results]):
-                print(f"Error results: {len([result.get() for result in results if not result.successful()])}")
-                break
+        # while True:
+        #     if all([result.ready() for result in results]):
+        #         print(f"Error results: {len([result.get() for result in results if not result.successful()])}")
+        #         break
+
+    return results
