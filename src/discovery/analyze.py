@@ -33,7 +33,7 @@ def analyze_profile(response, keywords, tweets_per_user, word_model):
     print(f"\033[93m Analyzed profile {profile_info.get('username', '-')} \033[0m")
 
     if profile_info is None:
-        return
+        return None
 
     description = profile_info.get('description')
     tweets = profile_info.pop('tweets')
@@ -43,10 +43,11 @@ def analyze_profile(response, keywords, tweets_per_user, word_model):
 
     if score > TOPIC_SIMILARITY_THRESHOLD and len(profile_info.get('links', [])) > 0:
         profile_info['score'] = "{:.3f}".format(score)
-        save_profile(profile_info)
+        # save_profile(profile_info)
 
-        # TODO: Perhaps change to id in the future
-        return profile_info['username']
+        return profile_info
+
+    return None
 
 
 def batch_request_profiles(ids):

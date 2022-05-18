@@ -1,13 +1,14 @@
-import os
 import math
 import time
-import shutil
 import gensim.downloader as downloader
 
 from pprint import pprint
+from decouple import config
+from elasticsearch import Elasticsearch
 from pyspark import SparkContext, SparkConf
 
-from src.utils import chunks, WORD_MODEL, get_searching_config, get_discovery_config, get_extraction_config
+from src.utils import chunks, WORD_MODEL, ES_INDEX, ES_ENDPOINT, get_searching_config, get_discovery_config, \
+    get_extraction_config
 from src.searching import get_initial_users, test_query_results
 from src.discovery import get_words_embedding, batch_request_profiles, analyze_profile
 from src.extraction import process_profile_links
@@ -31,6 +32,12 @@ class color:
     UNDERLINE = '\033[4m'
 
 
+def connect_elasticsearch():
+    _es = Elasticsearch(ES_ENDPOINT, http_auth=('elastic', config('ES_ELASTIC_PASSWORD')), verify_certs=False)
+
+    return _es if _es.ping() else None
+
+
 def test():
     test_tweets = test_query_results()
 
@@ -38,6 +45,15 @@ def test():
 
 
 def pipeline():
+    # ElasticSearch
+    _es = connect_elasticsearch()
+
+    if _es is None:
+        print("Failed to connect to elasticsearch")
+        return
+
+    _es.indices.delete(index=ES_INDEX, ignore=[400, 404])
+
     # Configurations
     searching_config = get_searching_config()
     keywords, tweets_per_user = get_discovery_config()
@@ -66,24 +82,24 @@ def pipeline():
     related_profiles = analyzed_profiles.filter(lambda profile: profile is not None)
 
     # Extraction
-    related_profiles.map(lambda profile: process_profile_links(profile, extraction_params)).collect()
+    final_profiles = related_profiles.map(lambda profile: process_profile_links(profile, extraction_params)).collect()
+
+    for final_profile in final_profiles:
+        try:
+            _es.index(index=ES_INDEX, id=final_profile.get('id'), document=final_profile)
+        except Exception as e:
+            print(f"{color.FAIL}Error posting to index: {e}{color.ENDC}")
 
 
 def main():
-    if os.path.exists("output"):
-        shutil.rmtree("output", True)
-
-    os.mkdir("output")
-
     start_time = time.time()
 
     pipeline()
 
     end_time = time.time()
 
-    print(
-        "Total run time: {:02d}:{:02d}".format(math.floor((end_time - start_time) / 60),
-                                               round((end_time - start_time) % 60)))
+    print("Total run time: {:02d}:{:02d}".format(math.floor((end_time - start_time) / 60),
+                                                 round((end_time - start_time) % 60)))
 
 
 if __name__ == '__main__':
