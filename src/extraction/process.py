@@ -4,30 +4,13 @@ import shutil
 from multiprocessing import get_context
 
 from .crawl import crawl_links
-from src.utils import get_configuration_section, process_twitter_name, OUTPUT_DIR, PROFILE_INFO_FILE
+from src.utils import process_twitter_name, OUTPUT_DIR, PROFILE_INFO_FILE
+from .. import get_extraction_config
 
 if ".json" in PROFILE_INFO_FILE:
     import json as serializer
 else:
     import pickle as serializer
-
-
-def get_extraction_config() -> dict:
-    """Gets the configuration parameters from the extraction section
-
-    Returns
-    -------
-    dict
-        The selected extraction parameters
-
-    """
-    extraction_config = get_configuration_section("extraction")
-
-    for key, value in extraction_config.items():
-        if not value:
-            del extraction_config[key]
-
-    return extraction_config
 
 
 def delete_profile_temp_dir(profile_identifier):
@@ -74,16 +57,4 @@ def process_profile_links(profile, extraction_params):
     with open(profile_file, file_mode) as f:
         serializer.dump(profile_info, f)
 
-
-def process_profiles(profile_identifiers):
-    extraction_params = get_extraction_config()
-    results = []
-
-    with get_context().Pool() as pool:
-        for profile_identifier in profile_identifiers:
-            results.append(pool.apply_async(process_profile_links, (profile_identifier, extraction_params)))
-
-        while True:
-            if all([result.ready() for result in results]):
-                print(f"Error results: {len([result.get() for result in results if not result.successful()])}")
-                break
+    return profile_info

@@ -60,8 +60,8 @@ def calculate_expression_score(expression, link_info):
 
     for search_expression, length, weight in search_expressions:
         matches = [
-            calculate_score(search_expression, length, link_info.get('name', "").lower()),
-            calculate_score(search_expression, length, link_info.get('title', "").lower()),
+            calculate_score(search_expression, length, " ".join(link_info.get('name', [])).lower()),
+            calculate_score(search_expression, length, " ".join(link_info.get('title', [])).lower()),
             calculate_score(search_expression, length, link_info.get('description', "").lower()),
             calculate_score(search_expression, length, " ".join(link_info.get('keywords', [])).lower()),
             calculate_score(search_expression, length, " ".join(link_info.get('internal_links', [])).lower()),

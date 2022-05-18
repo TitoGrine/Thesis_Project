@@ -101,12 +101,13 @@ def extract_website_links(hostname, soup, link_info):
     return [unquote(link).strip() for link in links if link is not None]
 
 
-def save_extracted_data(link_info, name, title, keywords, description, images, soup):
-    if name and len(name) > 0:
-        link_info['name'] += " " + name
+def save_extracted_data(link_info, name, titles, keywords, description, images, soup):
+    if name and len(name) > 0 and name not in link_info['name']:
+        link_info['name'].append(name)
 
-    if title and len(title) > 0:
-        link_info['title'] += " " + title
+    for title in titles:
+        if title and len(title) > 0:
+            link_info['title'].append(title)
 
     if keywords and len(keywords) > 0:
         link_info['keywords'].extend(keywords)
@@ -141,10 +142,10 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
     soup = BeautifulSoup(html, 'lxml')
     extracted_links = extract_website_links(hostname, soup, link_info)
 
-    description, keywords, meta_title = filter_meta_data(soup, url)
+    description, keywords, meta_title = filter_meta_data(soup)
     name, amp_title, images = filter_amp_data(soup, url)
 
-    save_extracted_data(link_info, name, f"{meta_title} {amp_title}", keywords, description, images, soup)
+    save_extracted_data(link_info, name, [meta_title, amp_title], keywords, description, images, soup)
 
     for link in extracted_links:
         if 'mailto:' in link:
@@ -200,8 +201,8 @@ def crawl_link(link) -> dict:
     link = standardize_url(link)
     link_info = {
         "original_link": link,
-        "name": "",
-        "title": "",
+        "name": [],
+        "title": [],
         "is_link_tree": False,
         "description": "",
         "keywords": [],

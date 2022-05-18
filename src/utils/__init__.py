@@ -15,7 +15,7 @@ from .text import normalize_unicode_text, remove_urls, remove_mentions, remove_r
 from .twitter import valid_tweet, get_retweet_id, process_twitter_text, process_twitter_name
 
 # Functions to deal with the configuration file
-from .config import get_configuration_section
+from .config import get_searching_config, get_discovery_config, get_extraction_config
 
 # Functions for crawling
 from .crawler import get_driver, clean_html

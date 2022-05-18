@@ -70,6 +70,18 @@ def normalize_image_data(data, url):
     return img
 
 
+def is_useful_img(img_info):
+    exclusion_keywords = ["icon", "logo"]
+    img_alt = img_info.get("alt", "").lower()
+    img_type = img_info.get("type", "").lower()
+
+    for word in exclusion_keywords:
+        if word in img_alt or word in img_type:
+            return False
+
+    return True
+
+
 def determine_user_agent(user_agent):
     if not user_agent or user_agent == default_user_agent():
         return FAKE_USER_AGENT
@@ -86,10 +98,13 @@ def find_image_tag_data(source, soup, url):
 
     if link['type'] != 'url':
         for line in html:
-            images.append({
+            item = {
                 'src': urljoin(url, line.get('href')),
                 'type': link['type'],
-            })
+            }
+
+            if is_useful_img(item):
+                images.append(item)
 
     return images
 
@@ -101,7 +116,8 @@ def find_all_images(soup, url):
     for image in all_images:
         item = normalize_image_data(image, url)
 
-        images.append(item)
+        if is_useful_img(item):
+            images.append(item)
 
     return images
 
@@ -114,7 +130,7 @@ def filter_amp_data(soup, url):
     title = ""
 
     if hasattr(soup.title, 'string'):
-        title = soup.title.string
+        title = soup.title.get('string', "")
 
     for script in amp_scripts:
         content = script.contents
@@ -177,10 +193,10 @@ def filter_amp_data(soup, url):
                 name = _json.get("name")
                 title += " " + _json.get('headline', '')
 
-    return name, title, images
+    return name, title.strip(), images
 
 
-def filter_meta_data(soup, url=None, source="generic"):
+def filter_meta_data(soup, source="generic"):
     meta = FILTER_MAPS['meta'][source]
     meta_map = meta['map']
 
@@ -206,4 +222,4 @@ def filter_meta_data(soup, url=None, source="generic"):
             else:
                 print(f"{prop}: {value}")
 
-    return description, keywords, title
+    return description, keywords, title.strip()

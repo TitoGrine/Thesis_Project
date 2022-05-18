@@ -5,41 +5,9 @@ from time import sleep
 from decouple import config
 from tweepy.errors import TooManyRequests
 
-from src.utils import get_configuration_section
+from src import get_searching_config
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
-
-
-def get_searching_config() -> tuple:
-    """Gets the configuration parameters from the searching section
-
-    Returns
-    -------
-    tuple
-        All configuration parameters or their default in tuple form
-
-    """
-    searching_config = get_configuration_section("searching")
-
-    if "users" not in searching_config:
-        raise KeyError("Necessary parameter <users> in searching section is not defined in configuration file.")
-
-    users = searching_config["users"]
-
-    if "keywords" not in searching_config and "hashtags" not in searching_config:
-        raise KeyError(
-            "Necessary parameters <keywords> and <hashtags> in searching section are not defined in configuration "
-            "file. At least one must be defined.")
-
-    keywords = searching_config.get("keywords") or []
-    hashtags = searching_config.get("hashtags") or []
-    exclude = searching_config.get("_exclude_") or []
-    countries = searching_config.get("_countries_") or []
-    languages = searching_config.get("_languages_") or ["en"]
-    start_time = searching_config.get("_start_time_") or None
-    end_time = searching_config.get("_end_time_") or None
-
-    return users, keywords, hashtags, exclude, countries, languages, start_time, end_time
 
 
 def build_query(keywords, hashtags, exclude, countries, languages) -> str:
@@ -140,7 +108,7 @@ def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
     return ids
 
 
-def get_initial_users() -> list[str]:
+def get_initial_users(configuration) -> list[str]:
     """Uses the Twitter API and the configurations present in the searching section of the config file to return a
     set of user IDs from potentially relevant profiles
 
@@ -149,7 +117,7 @@ def get_initial_users() -> list[str]:
     list[str]
         Twitter users' IDs
     """
-    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config()
+    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = configuration
 
     query = build_query(keywords, hashtags, exclude, countries, languages)
 
