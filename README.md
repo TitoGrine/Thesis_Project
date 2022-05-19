@@ -46,3 +46,10 @@ structure.
 
  > All parameters between underscores (e.g. `_<param>_`) are optional.
 
+### Running
+
+To run the application use the following command:
+
+```bash
+spark-submit --driver-memory 4G --executor-memory 4G --conf spark.local.dir=/home/tgrine/tmp main.py
+```

@@ -24,6 +24,10 @@ python-decouple = "^3.6"
 lxml = "^4.8.0"
 elasticsearch = "^8.2.0"
 pyspark = "^3.2.1"
+fastapi = "^0.78.0"
+uvicorn = {extras = ["standard"], version = "^0.17.6"}
+sse-starlette = "^0.10.3"
+asyncio = "^3.4.3"
 
 [tool.poetry.dev-dependencies]
 

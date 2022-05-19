@@ -38,12 +38,6 @@ def connect_elasticsearch():
     return _es if _es.ping() else None
 
 
-def test():
-    test_tweets = test_query_results()
-
-    pprint(test_tweets)
-
-
 def pipeline():
     # ElasticSearch
     _es = connect_elasticsearch()
