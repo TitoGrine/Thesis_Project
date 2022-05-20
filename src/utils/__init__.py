@@ -23,5 +23,8 @@ from .crawler import get_driver, clean_html
 # Functions modified from Lassie
 from .lassie import filter_meta_data, filter_amp_data
 
-# From for website data extraction
+# Functions for website data extraction
 from .extraction import map_entity_to_name
+
+# Functions for elasticsearch
+from .elastic import connect_elasticsearch

@@ -37,7 +37,14 @@ def build_query(keywords, hashtags, exclude, countries, languages) -> str:
     countries = " OR ".join([f"place_country:{ISO_code}" for ISO_code in countries])
     languages = " OR ".join([f"lang:{lang}" for lang in languages])
 
-    return f"(({keywords}) OR ({hashtags})) ({exclude}) ({countries}) ({languages}) -is:retweet -is:reply -is:nullcast"
+    keywords = f"({keywords})" if len(keywords) > 0 else keywords
+    hashtags = f"({hashtags})" if len(hashtags) > 0 else hashtags
+    exclude = f"({exclude})" if len(exclude) > 0 else exclude
+    countries = f"({countries})" if len(countries) > 0 else countries
+
+    include = f"({keywords} OR {hashtags})" if len(keywords) > 0 and len(hashtags) > 0 else f"({keywords}{hashtags})"
+
+    return f"{include} {exclude} {countries} ({languages}) -is:retweet -is:reply -is:nullcast"
 
 
 def extract_ids(res, ids):

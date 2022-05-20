@@ -44,12 +44,12 @@ structure.
 }
 ```
 
- > All parameters between underscores (e.g. `_<param>_`) are optional.
+ > All parameters between underscores (e.g. `_<param>_`) are optional, but in the configuration file they should not be included
 
 ### Running
 
 To run the application use the following command:
 
 ```bash
-spark-submit --driver-memory 4G --executor-memory 4G --conf spark.local.dir=/home/tgrine/tmp main.py
+spark-submit --driver-memory 4G --executor-memory 4G --conf spark.local.dir=/home/tgrine/tmp api/main.py
 ```

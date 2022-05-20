@@ -2,7 +2,7 @@ import json
 from .constants import SECTIONS, CONFIG_FILE
 
 
-def get_configuration_section(section) -> dict:
+def get_configuration_section(config, section) -> dict:
     """Gets the configuration dict for a given section of the configuration file
 
     Parameters
@@ -18,11 +18,14 @@ def get_configuration_section(section) -> dict:
     if section not in SECTIONS:
         raise KeyError(f"Configuration file does not have {section} as a section.")
 
-    with open(CONFIG_FILE, "r") as f:
-        return json.load(f)[section]
+    if config is None:
+        with open(CONFIG_FILE, "r") as f:
+            return json.load(f)[section]
+
+    return config.get(section)
 
 
-def get_searching_config() -> tuple:
+def get_searching_config(config) -> tuple:
     """Gets the configuration parameters from the searching section
 
     Returns
@@ -31,7 +34,7 @@ def get_searching_config() -> tuple:
         All configuration parameters or their default in tuple form
 
     """
-    searching_config = get_configuration_section("searching")
+    searching_config = get_configuration_section(config, "searching")
 
     if "users" not in searching_config:
         raise KeyError("Necessary parameter <users> in searching section is not defined in configuration file.")
@@ -43,18 +46,18 @@ def get_searching_config() -> tuple:
             "Necessary parameters <keywords> and <hashtags> in searching section are not defined in configuration "
             "file. At least one must be defined.")
 
-    keywords = searching_config.get("keywords") or []
-    hashtags = searching_config.get("hashtags") or []
-    exclude = searching_config.get("_exclude_") or []
-    countries = searching_config.get("_countries_") or []
-    languages = searching_config.get("_languages_") or ["en"]
-    start_time = searching_config.get("_start_time_") or None
-    end_time = searching_config.get("_end_time_") or None
+    keywords = searching_config.get("keywords", [])
+    hashtags = searching_config.get("hashtags", [])
+    exclude = searching_config.get("exclude", [])
+    countries = searching_config.get("countries", [])
+    languages = searching_config.get("languages", ["en"])
+    start_time = searching_config.get("start_time")
+    end_time = searching_config.get("end_time")
 
     return users, keywords, hashtags, exclude, countries, languages, start_time, end_time
 
 
-def get_discovery_config() -> tuple:
+def get_discovery_config(config) -> tuple:
     """Gets the configuration parameters from the discovery section
 
     Returns
@@ -63,7 +66,7 @@ def get_discovery_config() -> tuple:
         All configuration parameters
 
     """
-    discovery_config = get_configuration_section("discovery")
+    discovery_config = get_configuration_section(config, "discovery")
 
     if "keywords" not in discovery_config:
         raise KeyError("Necessary parameter <keywords> in discovery section is not defined in configuration file.")
@@ -78,7 +81,7 @@ def get_discovery_config() -> tuple:
     return keywords, tweets_per_user
 
 
-def get_extraction_config() -> dict:
+def get_extraction_config(config) -> dict:
     """Gets the configuration parameters from the extraction section
 
     Returns
@@ -87,7 +90,7 @@ def get_extraction_config() -> dict:
         The selected extraction parameters
 
     """
-    extraction_config = get_configuration_section("extraction")
+    extraction_config = get_configuration_section(config, "extraction")
 
     for key, value in extraction_config.items():
         if not value:

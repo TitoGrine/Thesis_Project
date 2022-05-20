@@ -6,7 +6,8 @@ SECTIONS = ["searching", "discovery", "extraction"]
 OUTPUT_DIR = "output"
 PROFILE_INFO_FILE = "profile_info.json"
 ES_ENDPOINT = "https://localhost:9200"
-ES_INDEX = "profile"
+ES_INDEX_CONFIG = "searches"
+ES_INDEX_SEARCH = "search"
 
 # Discovery constants
 TOPIC_SIMILARITY_THRESHOLD = 0.275
