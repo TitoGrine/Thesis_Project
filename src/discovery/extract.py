@@ -5,7 +5,8 @@ from time import sleep
 from decouple import config
 from tweepy.errors import TooManyRequests
 from urllib.parse import urlparse
-from src.utils import valid_tweet, get_retweet_id, process_twitter_text, standardize_url, REFUSE_DOMAINS, TWEET_FIELDS
+from src.utils import valid_tweet, get_retweet_id, process_twitter_text, standardize_url, remove_url_query, \
+    REFUSE_DOMAINS, TWEET_FIELDS
 from bloom_filter2 import BloomFilter
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
@@ -19,12 +20,13 @@ def add_url_to_links(url, links, links_bf):
 
     expanded_url_hostname = urlparse(expanded_url).hostname
 
-    if bool([domain for domain in REFUSE_DOMAINS if
-             expanded_url_hostname in domain]) or expanded_url in links_bf:
+    stripped_url = remove_url_query(expanded_url)
+
+    if bool([domain for domain in REFUSE_DOMAINS if expanded_url_hostname in domain]) or stripped_url in links_bf:
         return
 
     links.append(expanded_url)
-    links_bf.add(expanded_url)
+    links_bf.add(stripped_url)
 
 
 def extract_profile_base_urls(links, links_bf, profile_entities):

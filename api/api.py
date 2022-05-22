@@ -1,10 +1,10 @@
 import os
 import sys
+import uuid
+import threading
 
 from fastapi import FastAPI
 from pyspark import SparkConf, SparkContext
-from sse_starlette import EventSourceResponse
-from starlette.requests import Request
 
 from models import Config
 
@@ -27,10 +27,15 @@ async def test():
 
 
 @app.post("/search")
-async def search(request: Request, config: Config):
-    event_generator = pipeline(spark_context, config.dict(), request)
+async def search(config: Config):
+    search_key = uuid.uuid4()
 
-    return EventSourceResponse(event_generator)
+    t = threading.Thread(target=pipeline, args=(spark_context, config.dict(), search_key))
+    t.start()
+
+    return {
+        "key": search_key
+    }
 
 
 @app.get("/searches")

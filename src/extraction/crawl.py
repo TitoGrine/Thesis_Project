@@ -1,4 +1,5 @@
 import json
+import time
 import requests
 import validators
 
@@ -10,21 +11,26 @@ from .extract import extract_link_entities
 from .classify import calculate_link_profile_relatedness
 from src.utils import standardize_url, link_from_host, clean_html, get_driver, url_is_downloadable, FAKE_USER_AGENT, \
     filter_meta_data, filter_amp_data, SESSION_TIMEOUT, CERTIFICATE_VERIFY, WEBSITE_RELATEDNESS_THRESHOLD, \
-    MAX_CRAWL_DEPTH, SPECIAL_CRAWLING, normalize_unicode_text, REJECT_TYPES
+    MAX_CRAWL_DEPTH, SPECIAL_CRAWLING, normalize_unicode_text, REJECT_TYPES, remove_url_query, print_elapsed_time, \
+    url_is_dowloadable_partial_check
 
 
 def get_website_content(url, enable_javascript):
     driver = None
 
+    if url_is_dowloadable_partial_check(url):
+        return None, 418
+
     try:
         if enable_javascript:
-            driver = get_driver()
-
             head_req = requests.request("HEAD", url, headers={
                 'Accept-Language': 'en-US,en',
                 'User-Agent': FAKE_USER_AGENT
             }, timeout=SESSION_TIMEOUT, verify=CERTIFICATE_VERIFY)
             status_code = head_req.status_code
+
+            if url_is_downloadable(head_req.headers):
+                return None, 418
 
             # Sometimes HEAD request returns 4** error when GET returns 200
             if 400 <= status_code < 500:
@@ -34,11 +40,14 @@ def get_website_content(url, enable_javascript):
                 }, timeout=SESSION_TIMEOUT, verify=CERTIFICATE_VERIFY)
                 status_code = head_req.status_code
 
+            if 400 <= status_code < 500:
+                return None, status_code
+
             if url_is_downloadable(head_req.headers):
                 return None, 418
 
+            driver = get_driver()
             driver.get(url)
-
             source = driver.page_source
 
             driver.quit()
@@ -101,7 +110,7 @@ def extract_website_links(hostname, soup, link_info):
     return [unquote(link).strip() for link in links if link is not None]
 
 
-def save_extracted_data(link_info, name, titles, keywords, description, images, soup):
+def save_extracted_data(link_info, name, titles, keywords, description, images, soup, images_bf):
     if name and len(name) > 0 and name not in link_info['name']:
         link_info['name'].append(name)
 
@@ -116,8 +125,12 @@ def save_extracted_data(link_info, name, titles, keywords, description, images, 
         link_info['description'] += " " + normalize_unicode_text(description)
 
     if images and len(images) > 0:
-        link_info['images'].extend(
-            filter(lambda img: "type" not in img or img["type"] not in REJECT_TYPES, images))
+        for image in images:
+            image_url = remove_url_query(image.get('src'))
+
+            if ("type" not in image or image["type"] not in REJECT_TYPES) and image_url not in images_bf:
+                link_info['images'].append(image)
+                images_bf.add(image_url)
 
     if soup and len(soup) > 0:
         for s in soup(['script', 'style']):
@@ -126,13 +139,16 @@ def save_extracted_data(link_info, name, titles, keywords, description, images, 
         link_info['corpus'] += " " + normalize_unicode_text(' '.join(soup.stripped_strings).lower())
 
 
-def parse_website(url, link_info, internal_links, external_links, emails, phone_numbers, enable_javascript) -> set[str]:
+def parse_website(url, link_info, internal_links, external_links, emails, phone_numbers, images_bf,
+                  enable_javascript) -> set[str]:
     website_links = set()
 
     url = unquote(url)
     hostname = urlparse(url).hostname
 
+    start = time.time()
     html, status_code = get_website_content(url, enable_javascript)
+    print_elapsed_time(start, f" · Request Content (JS={enable_javascript})")
 
     if status_code >= 400 or html is None:
         return website_links
@@ -145,7 +161,7 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
     description, keywords, meta_title = filter_meta_data(soup)
     name, amp_title, images = filter_amp_data(soup, url)
 
-    save_extracted_data(link_info, name, [meta_title, amp_title], keywords, description, images, soup)
+    save_extracted_data(link_info, name, [meta_title, amp_title], keywords, description, images, soup, images_bf)
 
     for link in extracted_links:
         if 'mailto:' in link:
@@ -165,9 +181,8 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
             continue
 
         link = urljoin(url, link)
-        parsed_link = urlparse(link)
 
-        link = standardize_url(f"{parsed_link.scheme}://{parsed_link.netloc}{parsed_link.path}")
+        link = remove_url_query(link)
 
         if not validators.url(link):
             continue
@@ -184,17 +199,19 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
     return website_links
 
 
-def aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, links_visited,
+def aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, images_bf, links_visited,
                 enable_javascript):
     if links_visited[0] > MAX_CRAWL_DEPTH:
         return
 
     links_visited[0] += 1
 
-    for new_link in parse_website(link, link_info, internal_links, external_links, emails, phone_numbers,
-                                  enable_javascript):
-        aux_crawler(new_link, link_info, internal_links, external_links, emails, phone_numbers, links_visited,
-                    enable_javascript)
+    new_links = parse_website(link, link_info, internal_links, external_links, emails, phone_numbers, images_bf,
+                              enable_javascript)
+
+    for new_link in new_links:
+        aux_crawler(new_link, link_info, internal_links, external_links, emails, phone_numbers, images_bf,
+                    links_visited, enable_javascript)
 
 
 def crawl_link(link) -> dict:
@@ -219,12 +236,16 @@ def crawl_link(link) -> dict:
     emails = set()
     phone_numbers = set()
 
+    images_bf = BloomFilter()
+
     internal_links.add(link)
 
-    aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, [0], False)
+    aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, images_bf, [0], False)
 
+    images_bf.close()
     if len(internal_links) <= 1:
-        aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, [0], True)
+        images_bf = BloomFilter()
+        aux_crawler(link, link_info, internal_links, external_links, emails, phone_numbers, images_bf, [0], True)
 
     link_info['internal_links'] = list(internal_links)
     link_info['external_links'] = list(external_links)
@@ -234,18 +255,20 @@ def crawl_link(link) -> dict:
     return link_info
 
 
-def crawl_links(links, extraction_params, profile_names) -> list[dict]:
+def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[list[dict], list[str]]:
     link_bf = BloomFilter()
     links_info = []
 
-    link_queue = []
+    link_queue = links.copy()
 
     for link in links:
-        link_queue.append(link)
         link_bf.add(link)
 
-    while len(link_queue) > 0:
+    link_counter = 0
+
+    while len(link_queue) > 0 and link_counter < links_per_user:
         link = link_queue.pop()
+        link_counter += 1
 
         link_info = crawl_link(link)
 
@@ -260,15 +283,15 @@ def crawl_links(links, extraction_params, profile_names) -> list[dict]:
 
         link_info['score'] = "{:.3f}".format(link_score)
 
-        if link_info.get('is_link_tree'):
+        if link_info.get('is_link_tree', False):
             for external_link in link_info.get('external_links', []):
                 if external_link not in link_bf:
                     link_queue.append(external_link)
 
-            link_info['entities'] = extract_link_entities(link_info.get('corpus', ""), extraction_params)
+        link_info['entities'] = extract_link_entities(link_info.get('corpus', ""), entities_params)
 
         link_info.pop('corpus')
 
         links_info.append(link_info)
 
-    return links_info
+    return links_info, link_queue

@@ -20,11 +20,11 @@ TWEET_FIELDS = ["text", "author_id", "context_annotations",
 
 # Extraction constants
 WEBSITE_RELATEDNESS_THRESHOLD = 0.075
-MAX_CRAWL_DEPTH = 10
+MAX_CRAWL_DEPTH = 5
 CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')
 FAKE_USER_AGENT = 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/41.0.2272.96 Safari/537.36'
-SESSION_TIMEOUT = 30
+SESSION_TIMEOUT = 15
 CERTIFICATE_VERIFY = True
 REJECT_TYPES = ["favicon", "twitter:image"]
 SPECIAL_CRAWLING = ["linktr.ee", "lnk.to", "ampl.ink",

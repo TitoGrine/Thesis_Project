@@ -1,5 +1,6 @@
 import json
 import locale
+import re
 
 from requests.utils import default_user_agent
 from urllib.parse import urljoin
@@ -71,6 +72,11 @@ def normalize_image_data(data, url):
 
 
 def is_useful_img(img_info):
+    exclude_extension = re.compile(r"\.(svg)$")
+
+    if exclude_extension.search(img_info.get("src")):
+        return False
+
     exclusion_keywords = ["icon", "logo"]
     img_alt = img_info.get("alt", "").lower()
     img_type = img_info.get("type", "").lower()
@@ -98,13 +104,14 @@ def find_image_tag_data(source, soup, url):
 
     if link['type'] != 'url':
         for line in html:
-            item = {
-                'src': urljoin(url, line.get('href')),
-                'type': link['type'],
-            }
+            if isinstance(line.get('href'), str):
+                item = {
+                    'src': urljoin(url, line.get('href')),
+                    'type': link['type'],
+                }
 
-            if is_useful_img(item):
-                images.append(item)
+                if is_useful_img(item):
+                    images.append(item)
 
     return images
 
@@ -171,13 +178,14 @@ def filter_amp_data(soup, url):
                                     images.append({
                                         'src': urljoin(url, _image),
                                     })
-                                elif isinstance(_image, object):
+                                elif isinstance(_image, object) and isinstance(_image.get('url'), str):
                                     images.append({
                                         'src': urljoin(url, _image.get('url')),
                                         'width': convert_to_int(_image.get('width')),
                                         'height': convert_to_int(_image.get('height')),
                                     })
-                        elif not image_list and image.get('url') and url != image.get('url'):
+                        elif not image_list and image.get('url') and isinstance(image.get('url'),
+                                                                                str) and url != image.get('url'):
                             images.append({
                                 'src': urljoin(url, image.get('url')),
                                 'width': convert_to_int(image.get('width')),
@@ -185,7 +193,7 @@ def filter_amp_data(soup, url):
                             })
 
                 thumbnail_url = _json.get('thumbnailUrl')
-                if thumbnail_url:
+                if thumbnail_url and isinstance(thumbnail_url, str):
                     images.append({
                         'src': urljoin(url, thumbnail_url),
                     })

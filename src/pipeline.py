@@ -1,11 +1,13 @@
-import uuid
+import math
+import time
 
 from datetime import datetime
+from pyspark import SparkContext
 from gensim import downloader as downloader
 
-from src import ES_INDEX_CONFIG, ES_INDEX_SEARCH, get_searching_config, get_discovery_config, get_extraction_config, \
+from src import ES_INDEX_CONFIG, get_searching_config, get_discovery_config, get_extraction_config, \
     get_initial_users, WORD_MODEL, get_words_embedding, chunks, batch_request_profiles, analyze_profile, \
-    process_profile_links, connect_elasticsearch
+    process_profile_links, connect_elasticsearch, save_search_result, print_elapsed_time
 
 
 class color:
@@ -20,39 +22,18 @@ class color:
     UNDERLINE = '\033[4m'
 
 
-def client_message(event, message, search_key=None):
-    data = {
-        "message": message,
-    }
-
-    if search_key: data['key'] = search_key
-
-    return {
-        "event": event,
-        "data": data
-    }
-
-
-async def pipeline(spark_context, config, request=None):
-    if request is not None and await request.is_disconnected():
-        return
-
-    yield client_message("update", "Application started.")
+def pipeline(spark_context: SparkContext, config: dict, search_id):
+    start_time = time.time()
 
     # Configurations
     searching_config = get_searching_config(config)
     keywords, tweets_per_user = get_discovery_config(config)
-    extraction_params = get_extraction_config(config)
+    links_per_user, entities_params = get_extraction_config(config)
 
     config['timestamp'] = datetime.now()
 
     # Searching
     ids = get_initial_users(searching_config)
-
-    if request is not None and await request.is_disconnected():
-        return
-
-    yield client_message("update", f"Collected {len(ids)} initial profiles.")
 
     # Discovery
     word_model = downloader.load(WORD_MODEL)
@@ -71,28 +52,16 @@ async def pipeline(spark_context, config, request=None):
         lambda profile: profile is not None)
 
     # Extraction
-    final_profiles = related_profiles.map(lambda profile: process_profile_links(profile, extraction_params)).collect()
+    final_profiles = related_profiles.map(lambda profile: process_profile_links(profile, links_per_user, entities_params))
 
     # ElasticSearch
+    results = final_profiles.map(lambda profile: save_search_result(search_id, profile)).filter(
+        lambda res: res is not None).collect()
+
     _es = connect_elasticsearch()
-
-    if _es is None:
-        client_message("error", "Failed to connect to elasticsearch.")
-        return
-
-    _es.indices.delete(index="profile", ignore=[400, 404])
-
-    search_id = uuid.uuid4()
 
     _es.index(index=f"{ES_INDEX_CONFIG}", id=search_id, document=config)
 
-    for final_profile in final_profiles:
-        try:
-            _es.index(index=f"{ES_INDEX_SEARCH}_{search_id}", id=final_profile.get('id'), document=final_profile)
-        except Exception as e:
-            print(f"{color.FAIL}Error posting to index: {e}{color.ENDC}")
+    _es.close()
 
-    if request is not None and await request.is_disconnected():
-        return
-
-    yield client_message("end", "Finished search.", search_id)
+    print_elapsed_time(start_time, f"Gathered {len(results)} profiles")

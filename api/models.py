@@ -18,7 +18,7 @@ class DiscoverConfig(BaseModel):
     tweets_per_user: int
 
 
-class ExtractConfig(BaseModel):
+class EntitiesConfig(BaseModel):
     person: Optional[bool] = False
     norp: Optional[bool] = False
     fac: Optional[bool] = False
@@ -37,6 +37,11 @@ class ExtractConfig(BaseModel):
     quantity: Optional[bool] = False
     ordinal: Optional[bool] = False
     cardinal: Optional[bool] = False
+
+
+class ExtractConfig(BaseModel):
+    links_per_user: int
+    entities: Optional[EntitiesConfig] = {}
 
 
 class Config(BaseModel):

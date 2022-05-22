@@ -12,10 +12,9 @@ def main():
 
     # pipeline()
 
-    end_time = time.time()
+    elapsed_time = time.time()
 
-    print("Total run time: {:02d}:{:02d}".format(math.floor((end_time - start_time) / 60),
-                                                 round((end_time - start_time) % 60)))
+    print(f"Total run time: {math.floor(elapsed_time / 60):02d}:{round(elapsed_time % 60):02d}")
 
 
 if __name__ == '__main__':

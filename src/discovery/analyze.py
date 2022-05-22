@@ -1,10 +1,12 @@
 import os
+import time
+
 import tweepy
 from decouple import config
 
 from .extract import extract_profile_info
 from .classify import calculate_profile_score
-from src.utils import TOPIC_SIMILARITY_THRESHOLD, USER_FIELDS, OUTPUT_DIR, PROFILE_INFO_FILE
+from src.utils import TOPIC_SIMILARITY_THRESHOLD, USER_FIELDS, OUTPUT_DIR, PROFILE_INFO_FILE, print_elapsed_time
 
 if "json" in PROFILE_INFO_FILE:
     import json as serializer
@@ -30,8 +32,6 @@ def save_profile(profile_info):
 def analyze_profile(response, keywords, tweets_per_user, word_model):
     profile_info = extract_profile_info(response, tweets_per_user)
 
-    print(f"\033[93m Analyzed profile {profile_info.get('username', '-')} \033[0m")
-
     if profile_info is None:
         return None
 
@@ -43,7 +43,6 @@ def analyze_profile(response, keywords, tweets_per_user, word_model):
 
     if score > TOPIC_SIMILARITY_THRESHOLD and len(profile_info.get('links', [])) > 0:
         profile_info['score'] = "{:.3f}".format(score)
-        # save_profile(profile_info)
 
         return profile_info
 

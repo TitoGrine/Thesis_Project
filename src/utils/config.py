@@ -81,7 +81,7 @@ def get_discovery_config(config) -> tuple:
     return keywords, tweets_per_user
 
 
-def get_extraction_config(config) -> dict:
+def get_extraction_config(config) -> tuple:
     """Gets the configuration parameters from the extraction section
 
     Returns
@@ -92,8 +92,16 @@ def get_extraction_config(config) -> dict:
     """
     extraction_config = get_configuration_section(config, "extraction")
 
-    for key, value in extraction_config.items():
-        if not value:
-            del extraction_config[key]
+    if "links_per_user" not in extraction_config:
+        raise KeyError(
+            "Necessary parameter <links_per_user> in extraction section is not defined in configuration file.")
 
-    return extraction_config
+    links_per_user = extraction_config.get("links_per_user")
+
+    entities_config = extraction_config.get("entities", {})
+
+    for key, value in entities_config.items():
+        if not value:
+            del entities_config[key]
+
+    return links_per_user, entities_config
