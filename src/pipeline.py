@@ -51,6 +51,8 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
 
     setup_elasticsearch(search_id=search_id, config=config, state="running")
 
+    start_time = time.time()
+
     try:
         # Configurations
         searching_config = get_searching_config(config)
@@ -86,7 +88,11 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
 
         print(f"Gathered {len(results)} profiles")
 
+        config['duration'] = time.time() - start_time
+
         save_search_state(search_id=search_id, config=config, state="completed")
     except Exception as error:
+        config['duration'] = time.time() - start_time
         config['error'] = str(error)
+
         save_search_state(search_id=search_id, config=config, state="error")

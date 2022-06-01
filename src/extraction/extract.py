@@ -13,8 +13,8 @@ def extract_link_entities(corpus, extraction_params):
     for entity in doc.ents:
         try:
             entities[map_entity_to_name(entity.label_)].add(entity.text)
-        except KeyError as e:
-            print(f"Error retrieving key from entity map: {e}")
+        except KeyError:
+            continue
 
     entities = {ley: list(value) for ley, value in entities.items()}
 

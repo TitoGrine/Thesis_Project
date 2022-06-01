@@ -2,6 +2,7 @@ import os
 import sys
 import uuid
 import threading
+from pprint import pprint
 
 from fastapi import FastAPI, HTTPException
 from pyspark import SparkConf, SparkContext
@@ -10,7 +11,8 @@ from models import Config, SearchConfig
 
 sys.path.append(f"{os.environ['HOME']}/Thesis_Project/")
 
-from src import test_query_results, pipeline, connect_elasticsearch, PROFILE_FIELDS, LINK_FIELDS
+from src import test_query_results, pipeline, connect_elasticsearch, PROFILE_FIELDS, NORMAL_LINK_FIELDS, \
+    WILDCARD_LINK_FIELDS
 
 conf = SparkConf().setAppName("Thesis").setMaster("local[*]")
 spark_context = SparkContext(conf=conf)
@@ -63,10 +65,10 @@ async def retrieve_search(search_id, q=None, fields=None, search_after=None):
         query = {"match_all": {}}
     else:
         query = {
-            "combined_fields": {
+            "multi_match": {
                 "query": q,
                 "fields": fields.split(",") if fields is not None else PROFILE_FIELDS,
-                "operator": "and"
+                "fuzziness": "AUTO"
             }
         }
 
@@ -111,6 +113,43 @@ async def retrieve_search(search_id, profile_id, q=None, fields=None, search_aft
             },
         }
     else:
+        if fields is not None:
+            fields = fields.split(",")
+
+            normal_fields = [field for field in fields if field in NORMAL_LINK_FIELDS]
+            wildcard_fields = [field for field in fields if field in WILDCARD_LINK_FIELDS]
+
+            inner_queries = []
+
+            if len(normal_fields) > 0:
+                inner_queries.append({"multi_match": {
+                    "query": q,
+                    "fields": [f"processed_links.{field}" for field in normal_fields],
+                    "fuzziness": "AUTO"
+                }})
+
+            for field in wildcard_fields:
+                inner_queries.append({
+                    "wildcard": {
+                        f"processed_links.{field}": {"value": f"*{q}*"}
+                    }
+                })
+        else:
+            inner_queries = [
+                {"multi_match": {
+                    "query": q,
+                    "fields": [f"processed_links.{field}" for field in NORMAL_LINK_FIELDS],
+                    "fuzziness": "AUTO"
+                }}
+            ]
+
+            for field in WILDCARD_LINK_FIELDS:
+                inner_queries.append({
+                    "wildcard": {
+                        f"processed_links.{field}": {"value": f"*{q}*"}
+                    }
+                })
+
         query = {
             "bool": {
                 "must": [
@@ -124,11 +163,8 @@ async def retrieve_search(search_id, profile_id, q=None, fields=None, search_aft
                         "nested": {
                             "path": "processed_links",
                             "query": {
-                                "combined_fields": {
-                                    "query": q,
-                                    "fields": [f"processed_links.{field}" for field in
-                                               (fields.split(",") if fields is not None else LINK_FIELDS)],
-                                    "operator": "and"
+                                "bool": {
+                                    "should": inner_queries
                                 }
                             },
                             "inner_hits": {

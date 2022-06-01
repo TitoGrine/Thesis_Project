@@ -1,11 +1,14 @@
 import json
-import time
+import queue
+
 import requests
 import validators
 
 from bs4 import BeautifulSoup
 from bloom_filter2 import BloomFilter
 from urllib.parse import urlparse, urljoin, unquote
+from threading import Thread, Lock
+from queue import Queue
 
 from .extract import extract_link_entities
 from .classify import calculate_link_profile_relatedness
@@ -13,6 +16,20 @@ from src.utils import standardize_url, link_from_host, clean_html, get_driver, u
     filter_meta_data, filter_amp_data, SESSION_TIMEOUT, CERTIFICATE_VERIFY, WEBSITE_RELATEDNESS_THRESHOLD, \
     MAX_CRAWL_DEPTH, SPECIAL_CRAWLING, normalize_unicode_text, REJECT_TYPES, remove_url_query, print_elapsed_time, \
     url_is_dowloadable_partial_check
+
+
+class ThreadSafeCounter:
+    def __init__(self):
+        self.value = 0
+        self._lock = Lock()
+
+    def increment(self):
+        with self._lock:
+            self.value += 1
+
+    def check(self, max: int):
+        with self._lock:
+            return self.value < max
 
 
 def get_website_content(url, enable_javascript):
@@ -254,28 +271,26 @@ def crawl_link(link) -> dict:
     return link_info
 
 
-def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[list[dict], list[str]]:
-    link_bf = BloomFilter()
-    links_info = []
+def crawl_link_worker(link_queue: Queue, links_info: Queue, link_bf: BloomFilter, link_counter: ThreadSafeCounter,
+                      entities_params, profile_names, links_per_user):
+    while link_queue.qsize() > 0 and link_counter.check(links_per_user):
+        try:
+            link = link_queue.get()
+        except queue.Empty:
+            return
 
-    link_queue = links.copy()
+        if link in link_bf:
+            link_queue.task_done()
+            continue
 
-    for link in links:
-        link_bf.add(link)
-
-    link_counter = 0
-
-    while len(link_queue) > 0 and link_counter < links_per_user:
-        link = link_queue.pop()
-        link_counter += 1
+        link_counter.increment()
 
         link_info = crawl_link(link)
 
         link_score = calculate_link_profile_relatedness(link_info, profile_names)
 
         for internal_link in link_info.get('internal_links', []):
-            if internal_link in link_queue:
-                link_queue.remove(internal_link)
+            link_bf.add(internal_link)
 
         if link_score < WEBSITE_RELATEDNESS_THRESHOLD:
             continue
@@ -284,13 +299,37 @@ def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[
 
         if link_info.get('is_link_tree', False):
             for external_link in link_info.get('external_links', []):
-                if external_link not in link_bf:
-                    link_queue.append(external_link)
+                link_queue.put(external_link)
 
         link_info['entities'] = extract_link_entities(link_info.get('corpus', ""), entities_params)
 
         link_info.pop('corpus')
 
-        links_info.append(link_info)
+        links_info.put(link_info)
 
-    return links_info, link_queue
+        link_queue.task_done()
+
+
+def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[list[dict], list[str]]:
+    link_bf = BloomFilter()
+    links_info = Queue()
+
+    link_queue = Queue()
+
+    for link in links:
+        link_queue.put_nowait(link)
+
+    link_counter = ThreadSafeCounter()
+
+    threads = []
+
+    for _ in range(8):
+        threads.append(Thread(target=crawl_link_worker, args=(link_queue, links_info, link_bf, link_counter, entities_params, profile_names, links_per_user)))
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    return list(links_info.queue), list(link_queue.queue)

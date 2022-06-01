@@ -9,7 +9,8 @@ ES_ENDPOINT = "https://localhost:9200"
 ES_INDEX_CONFIG = "searches"
 ES_INDEX_SEARCH = "search"
 PROFILE_FIELDS = ["username", "name", "location", "description", "entities"]
-LINK_FIELDS = ["original_link", "name", "title", "description", "keywords", "emails", "phone_numbers"]
+NORMAL_LINK_FIELDS = ["name", "title", "description", "keywords", "phone_numbers"]
+WILDCARD_LINK_FIELDS = ["original_link", "emails"]
 
 # Discovery constants
 TOPIC_SIMILARITY_THRESHOLD = 0.275
