@@ -21,10 +21,11 @@ def get_expression_combinations(initial_expression):
     weight_sum = 0
     token_combinations = set()
     expression_combinations = set()
-    initial_expression = regex.sub(r"(\W|_)+", " ", initial_expression.lower()).strip()
+    initial_expression = regex.sub(r"([^\w&]|_)+", " ", initial_expression.lower()).strip()
 
     expression_combinations.add(initial_expression)
     expression_combinations.add(initial_expression.replace("&", "and"))
+    expression_combinations.add(initial_expression.replace("&", "").strip())
 
     for expression in expression_combinations:
         tokens = expression.split(" ")

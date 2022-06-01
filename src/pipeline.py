@@ -1,13 +1,15 @@
-import math
 import time
 
 from datetime import datetime
+from pprint import pprint
+
 from pyspark import SparkContext
 from gensim import downloader as downloader
 
 from src import ES_INDEX_CONFIG, get_searching_config, get_discovery_config, get_extraction_config, \
     get_initial_users, WORD_MODEL, get_words_embedding, chunks, batch_request_profiles, analyze_profile, \
-    process_profile_links, connect_elasticsearch, save_search_result, print_elapsed_time
+    process_profile_links, connect_elasticsearch, save_search_result, print_elapsed_time, ES_INDEX_SEARCH, \
+    profile_index_mapping
 
 
 class color:
@@ -22,41 +24,20 @@ class color:
     UNDERLINE = '\033[4m'
 
 
-def pipeline(spark_context: SparkContext, config: dict, search_id):
-    start_time = time.time()
+def setup_elasticsearch(search_id: str, config: dict, state: str):
+    config['state'] = state
 
-    # Configurations
-    searching_config = get_searching_config(config)
-    keywords, tweets_per_user = get_discovery_config(config)
-    links_per_user, entities_params = get_extraction_config(config)
+    _es = connect_elasticsearch()
 
-    config['timestamp'] = datetime.now()
+    _es.index(index=f"{ES_INDEX_CONFIG}", id=search_id, document=config)
 
-    # Searching
-    ids = get_initial_users(searching_config)
+    _es.indices.create(index=f"{ES_INDEX_SEARCH}_{search_id}", body=profile_index_mapping)
 
-    # Discovery
-    word_model = downloader.load(WORD_MODEL)
-    embedded_keywords = get_words_embedding(keywords, word_model)
+    _es.close()
 
-    word_model_bv = spark_context.broadcast(word_model)
 
-    id_chunks = list(chunks(ids, 100))
-
-    rdd = spark_context.parallelize(id_chunks)
-
-    profile_responses = rdd.flatMap(batch_request_profiles)
-
-    related_profiles = profile_responses.map(
-        lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_user, word_model_bv.value)).filter(
-        lambda profile: profile is not None)
-
-    # Extraction
-    final_profiles = related_profiles.map(lambda profile: process_profile_links(profile, links_per_user, entities_params))
-
-    # ElasticSearch
-    results = final_profiles.map(lambda profile: save_search_result(search_id, profile)).filter(
-        lambda res: res is not None).collect()
+def save_search_state(search_id: str, config: dict, state: str):
+    config['state'] = state
 
     _es = connect_elasticsearch()
 
@@ -64,4 +45,48 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
 
     _es.close()
 
-    print_elapsed_time(start_time, f"Gathered {len(results)} profiles")
+
+def pipeline(spark_context: SparkContext, config: dict, search_id):
+    config['timestamp'] = datetime.now()
+
+    setup_elasticsearch(search_id=search_id, config=config, state="running")
+
+    try:
+        # Configurations
+        searching_config = get_searching_config(config)
+        keywords, tweets_per_user = get_discovery_config(config)
+        links_per_user, entities_params = get_extraction_config(config)
+
+        # Searching
+        ids = get_initial_users(searching_config)
+
+        # Discovery
+        word_model = downloader.load(WORD_MODEL)
+        embedded_keywords = get_words_embedding(keywords, word_model)
+
+        word_model_bv = spark_context.broadcast(word_model)
+
+        id_chunks = list(chunks(ids, 100))
+
+        rdd = spark_context.parallelize(id_chunks)
+
+        profile_responses = rdd.flatMap(batch_request_profiles)
+
+        related_profiles = profile_responses.map(
+            lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_user, word_model_bv.value)).filter(
+            lambda profile: profile is not None)
+
+        # Extraction
+        final_profiles = related_profiles.map(
+            lambda profile: process_profile_links(profile, links_per_user, entities_params))
+
+        # ElasticSearch
+        results = final_profiles.map(lambda profile: save_search_result(search_id, profile)).filter(
+            lambda res: res is not None).collect()
+
+        print(f"Gathered {len(results)} profiles")
+
+        save_search_state(search_id=search_id, config=config, state="completed")
+    except Exception as error:
+        config['error'] = str(error)
+        save_search_state(search_id=search_id, config=config, state="error")

@@ -141,7 +141,6 @@ def extract_info(res, results):
         results.append({
             'id': user.get('id', "Error: no ID in user object"),
             'username': user.get('username', "Error: no username in user object"),
-            'name': user.get('name', "Error: no name in user object"),
             'tweet': tweet.get('text', "Error: no text in tweet object")
         })
 
@@ -153,7 +152,7 @@ def test_search_tweets(query, start_time=None, end_time=None) -> list[dict]:
 
     while len(results) < 10 and call_count < 2:
         try:
-            res = api.search_all_tweets(query, expansions="author_id", user_fields=["id", "username", "name", "url"],
+            res = api.search_all_tweets(query, expansions="author_id", user_fields=["id", "username", "url"],
                                         sort_order="recency", start_time=start_time, end_time=end_time, max_results=10,
                                         next_token=next_token)
         except TooManyRequests:
@@ -175,8 +174,8 @@ def test_search_tweets(query, start_time=None, end_time=None) -> list[dict]:
     return results
 
 
-def test_query_results() -> list[dict]:
-    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config()
+def test_query_results(configuration: dict) -> list[dict]:
+    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config(configuration)
 
     query = build_query(keywords, hashtags, exclude, countries, languages)
 

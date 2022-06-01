@@ -162,7 +162,7 @@ def extract_profile_info(response, tweets_per_user) -> dict or None:
         'name': response.get('name'),
         'profile_image': response.get('profile_image_url'),
         'location': response.get('location'),
-        'description': process_twitter_text(response.get('description'))
+        'description': response.get('description')
     }
 
     extract_profile_tweets_info(profile_info, response.get('entities'), tweets_per_user)

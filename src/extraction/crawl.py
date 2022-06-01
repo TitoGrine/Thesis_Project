@@ -115,11 +115,12 @@ def save_extracted_data(link_info, name, titles, keywords, description, images, 
         link_info['name'].append(name)
 
     for title in titles:
-        if title and len(title) > 0:
+        if title and len(title) > 0 and title not in link_info['title']:
             link_info['title'].append(title)
 
-    if keywords and len(keywords) > 0:
-        link_info['keywords'].extend(keywords)
+    for keyword in keywords:
+        if keyword and len(keyword) > 0 and keyword not in link_info['keywords']:
+            link_info['keywords'].append(keyword)
 
     if description and len(description) > 0:
         link_info['description'] += " " + normalize_unicode_text(description)
@@ -146,9 +147,7 @@ def parse_website(url, link_info, internal_links, external_links, emails, phone_
     url = unquote(url)
     hostname = urlparse(url).hostname
 
-    start = time.time()
     html, status_code = get_website_content(url, enable_javascript)
-    print_elapsed_time(start, f" · Request Content (JS={enable_javascript})")
 
     if status_code >= 400 or html is None:
         return website_links

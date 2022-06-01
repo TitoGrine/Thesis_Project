@@ -22,7 +22,7 @@ def get_configuration_section(config, section) -> dict:
         with open(CONFIG_FILE, "r") as f:
             return json.load(f)[section]
 
-    return config.get(section)
+    return config.get(section, {})
 
 
 def get_searching_config(config) -> tuple:
@@ -98,10 +98,10 @@ def get_extraction_config(config) -> tuple:
 
     links_per_user = extraction_config.get("links_per_user")
 
-    entities_config = extraction_config.get("entities", {})
+    entities_config = {}
 
-    for key, value in entities_config.items():
-        if not value:
-            del entities_config[key]
+    for key, value in extraction_config.get("entities", {}).items():
+        if bool(value):
+            entities_config[key] = True
 
     return links_per_user, entities_config

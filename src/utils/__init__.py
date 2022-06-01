@@ -1,5 +1,6 @@
 # Constants
 from .constants import *
+from .mapping import *
 
 # General purpose util functions
 from .general import chunks, merge_docs, flatten

@@ -1,4 +1,3 @@
-import warnings
 import math
 
 import nltk
@@ -11,12 +10,13 @@ from nltk.stem.wordnet import WordNetLemmatizer
 
 from .embedding import get_words_embedding
 from src.utils import merge_docs, MAX_ATTEMPTS
+from .. import process_twitter_text
 
 nltk.download('wordnet')
 nltk.download('omw-1.4')
 
 
-def get_topic_words(words):
+def get_topic_words(words: list[str]) -> list[list[str]]:
     docs = list(merge_docs(words, 5))
 
     tokenizer = RegexpTokenizer(r'\w+')
@@ -39,25 +39,23 @@ def get_topic_words(words):
     stable_model = None
     attempt_count = 0
 
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
+    while stable_model is None and attempt_count < MAX_ATTEMPTS:
+        model = EnsembleLda(corpus=corpus, id2word=id2word, num_topics=10)
+        stable_model = model.generate_gensim_representation()
 
-        while stable_model is None and attempt_count < MAX_ATTEMPTS:
-            model = EnsembleLda(corpus=corpus, id2word=id2word, num_topics=10)
-            stable_model = model.generate_gensim_representation()
-
-            attempt_count += 1
+        attempt_count += 1
 
     if stable_model is None:
         return []
 
-    top_topics = stable_model.top_topics(corpus, topn=10)[:5]
+    top_topics = stable_model.top_topics(corpus, topn=10)[:-5]
 
     return [[topic_word for topic_value, topic_word in topic_distribution]
             for topic_distribution, coherence in top_topics]
 
 
-def calculate_similarity_score(keywords_embedding, words_embedding, word_model) -> float:
+def calculate_similarity_score(keywords_embedding: list[float], words_embedding: list[list[list[float]]],
+                               word_model) -> float:
     if len(keywords_embedding) == 0 or len(words_embedding) == 0:
         return -1.0
 
@@ -84,10 +82,11 @@ def calculate_similarity_score(keywords_embedding, words_embedding, word_model) 
 
 
 def calculate_profile_score(keywords, word_model, description, tweets, retweets) -> float:
+    description_words = process_twitter_text(description)
     tweets_topic_words = get_topic_words(tweets)
     retweets_topic_words = get_topic_words(retweets)
 
-    scores = [calculate_similarity_score(keywords, [get_words_embedding(description, word_model)], word_model),
+    scores = [calculate_similarity_score(keywords, [get_words_embedding(description_words, word_model)], word_model),
               calculate_similarity_score(keywords,
                                          [get_words_embedding(words, word_model) for words in tweets_topic_words],
                                          word_model),

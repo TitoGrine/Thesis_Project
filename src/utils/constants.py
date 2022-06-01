@@ -8,6 +8,8 @@ PROFILE_INFO_FILE = "profile_info.json"
 ES_ENDPOINT = "https://localhost:9200"
 ES_INDEX_CONFIG = "searches"
 ES_INDEX_SEARCH = "search"
+PROFILE_FIELDS = ["username", "name", "location", "description", "entities"]
+LINK_FIELDS = ["original_link", "name", "title", "description", "keywords", "emails", "phone_numbers"]
 
 # Discovery constants
 TOPIC_SIMILARITY_THRESHOLD = 0.275
