@@ -54,6 +54,12 @@ def get_searching_config(config) -> tuple:
     start_time = searching_config.get("start_time")
     end_time = searching_config.get("end_time")
 
+    if len(start_time) == 0:
+        start_time = None
+
+    if len(end_time) == 0:
+        end_time = None
+
     return users, keywords, hashtags, exclude, countries, languages, start_time, end_time
 
 

@@ -8,8 +8,7 @@ from gensim import downloader as downloader
 
 from src import ES_INDEX_CONFIG, get_searching_config, get_discovery_config, get_extraction_config, \
     get_initial_users, WORD_MODEL, get_words_embedding, chunks, batch_request_profiles, analyze_profile, \
-    process_profile_links, connect_elasticsearch, save_search_result, print_elapsed_time, ES_INDEX_SEARCH, \
-    profile_index_mapping
+    process_profile_links, connect_elasticsearch, save_search_result, ES_INDEX_SEARCH, profile_index_mapping
 
 
 class color:
@@ -91,6 +90,7 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
         config['duration'] = time.time() - start_time
 
         save_search_state(search_id=search_id, config=config, state="completed")
+
     except Exception as error:
         config['duration'] = time.time() - start_time
         config['error'] = str(error)

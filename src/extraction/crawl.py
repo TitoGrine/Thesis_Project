@@ -27,9 +27,9 @@ class ThreadSafeCounter:
         with self._lock:
             self.value += 1
 
-    def check(self, max: int):
+    def check(self, limit: int):
         with self._lock:
-            return self.value < max
+            return self.value < limit
 
 
 def get_website_content(url, enable_javascript):
@@ -308,6 +308,8 @@ def crawl_link_worker(link_queue: Queue, links_info: Queue, link_bf: BloomFilter
         links_info.put(link_info)
 
         link_queue.task_done()
+
+    return
 
 
 def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[list[dict], list[str]]:
