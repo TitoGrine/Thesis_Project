@@ -30,5 +30,8 @@ from .extraction import map_entity_to_name
 # Functions for elasticsearch
 from .elastic import connect_elasticsearch, save_search_result
 
-# Function related to time
+# Functions related to time
 from .time import print_elapsed_time
+
+# Functions related to fuzzy matching
+from .fuzziness import get_fuzziness_distance

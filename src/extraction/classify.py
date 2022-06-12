@@ -1,5 +1,7 @@
+import numpy
 import regex
 from wordfreq import zipf_frequency
+from src.utils import get_fuzziness_distance
 
 
 def score_formula(original_length, match_length, num_errors):
@@ -12,6 +14,7 @@ def calculate_score(search_expression, length, string):
     match = regex.search(search_expression, string)
 
     if match:
+        # print(f"\033[93m {match[0]} - {search_expression} \033[0m")
         return score_formula(length, len(match[0]), sum(match.fuzzy_counts))
 
     return 0
@@ -32,14 +35,15 @@ def get_expression_combinations(initial_expression):
 
         if len(tokens) > 1:
             token_combinations.update(
-                [token for token in tokens if len(token) > 3])
+                [token for token in tokens if len(token) > 2])
 
     expression_tuples = []
 
     for expression in expression_combinations:
         length = len(expression)
-        regex_expression = "(?b)(\\b" + expression.replace(" ",
-                                                           "){e<=2}(\w){0,2}((\W|_)|(\W|_)(\w)*(\W|_)){0,2}(\w){0,2}(?b)(") + "\\b){e<=2}"
+
+        regex_expression = "(\w){0,2}((\W|_)|(\W|_)(\w)*(\W|_)){0,2}(\w){0,2}".join(
+            [f"(?b)({token}){{e<={get_fuzziness_distance(len(token))}}}" for token in expression.split(" ")])
 
         expression_tuples.append((regex_expression, length, 1.0))
         weight_sum += 1.0
@@ -77,9 +81,13 @@ def calculate_expression_score(expression, link_info):
 
 
 def calculate_link_profile_relatedness(link_info, profile_names):
-    score = 0
+    scores = []
 
     for expression in profile_names:
-        score += calculate_expression_score(expression, link_info)
+        scores.append(calculate_expression_score(expression, link_info))
 
-    return score
+    score = numpy.average(scores) if len(scores) > 0 else 0
+
+    print(f"\033[91m {score}: {link_info.get('original_link', '-')} \033[0m")
+
+    return numpy.average(scores) if len(scores) > 0 else 0

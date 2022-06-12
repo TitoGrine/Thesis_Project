@@ -10,7 +10,10 @@ ES_INDEX_CONFIG = "searches"
 ES_INDEX_SEARCH = "search"
 PROFILE_FIELDS = ["username", "name", "location", "description", "entities"]
 NORMAL_LINK_FIELDS = ["name", "title", "description", "keywords", "phone_numbers"]
-WILDCARD_LINK_FIELDS = ["original_link", "emails"]
+WILDCARD_LINK_FIELDS = ["emails", "internal_links"]
+
+# Searching constants
+MIN_TWEET_COUNT = 500
 
 # Discovery constants
 TOPIC_SIMILARITY_THRESHOLD = 0.275
@@ -22,7 +25,7 @@ TWEET_FIELDS = ["text", "author_id", "context_annotations",
                 "entities", "lang", "referenced_tweets"]
 
 # Extraction constants
-WEBSITE_RELATEDNESS_THRESHOLD = 0.075
+WEBSITE_RELATEDNESS_THRESHOLD = 0.07
 MAX_CRAWL_DEPTH = 5
 CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')

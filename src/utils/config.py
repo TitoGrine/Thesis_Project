@@ -36,10 +36,10 @@ def get_searching_config(config) -> tuple:
     """
     searching_config = get_configuration_section(config, "searching")
 
-    if "users" not in searching_config:
-        raise KeyError("Necessary parameter <users> in searching section is not defined in configuration file.")
+    if "profiles" not in searching_config:
+        raise KeyError("Necessary parameter <profiles> in searching section is not defined in configuration file.")
 
-    users = searching_config["users"]
+    profiles = searching_config["profiles"]
 
     if "keywords" not in searching_config and "hashtags" not in searching_config:
         raise KeyError(
@@ -60,7 +60,7 @@ def get_searching_config(config) -> tuple:
     if len(end_time) == 0:
         end_time = None
 
-    return users, keywords, hashtags, exclude, countries, languages, start_time, end_time
+    return profiles, keywords, hashtags, exclude, countries, languages, start_time, end_time
 
 
 def get_discovery_config(config) -> tuple:
@@ -77,14 +77,14 @@ def get_discovery_config(config) -> tuple:
     if "keywords" not in discovery_config:
         raise KeyError("Necessary parameter <keywords> in discovery section is not defined in configuration file.")
 
-    if "tweets_per_user" not in discovery_config:
+    if "tweets_per_profile" not in discovery_config:
         raise KeyError(
-            "Necessary parameter <tweets_per_user> in discovery section is not defined in configuration file.")
+            "Necessary parameter <tweets_per_profile> in discovery section is not defined in configuration file.")
 
     keywords = discovery_config["keywords"]
-    tweets_per_user = discovery_config["tweets_per_user"]
+    tweets_per_profile = discovery_config["tweets_per_profile"]
 
-    return keywords, tweets_per_user
+    return keywords, tweets_per_profile
 
 
 def get_extraction_config(config) -> tuple:
@@ -98,11 +98,11 @@ def get_extraction_config(config) -> tuple:
     """
     extraction_config = get_configuration_section(config, "extraction")
 
-    if "links_per_user" not in extraction_config:
+    if "links_per_profile" not in extraction_config:
         raise KeyError(
-            "Necessary parameter <links_per_user> in extraction section is not defined in configuration file.")
+            "Necessary parameter <links_per_profile> in extraction section is not defined in configuration file.")
 
-    links_per_user = extraction_config.get("links_per_user")
+    links_per_profile = extraction_config.get("links_per_profile")
 
     entities_config = {}
 
@@ -110,4 +110,4 @@ def get_extraction_config(config) -> tuple:
         if bool(value):
             entities_config[key] = True
 
-    return links_per_user, entities_config
+    return links_per_profile, entities_config

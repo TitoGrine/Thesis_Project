@@ -29,8 +29,8 @@ def save_profile(profile_info):
         serializer.dump(profile_info, f)
 
 
-def analyze_profile(response, keywords, tweets_per_user, word_model):
-    profile_info = extract_profile_info(response, tweets_per_user)
+def analyze_profile(response, keywords, tweets_per_profile, word_model):
+    profile_info = extract_profile_info(response, tweets_per_profile)
 
     if profile_info is None:
         return None

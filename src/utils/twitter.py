@@ -33,7 +33,7 @@ def process_twitter_text(text):
 def process_twitter_name(name) -> str:
     name = normalize_unicode_text(name)
 
-    name = re.sub(r"\(.*\)", "", name)
+    name = re.sub(r"\(.*\)\W*\b", "", name)
     name = re.sub(r"([#@])\w*\b", "", name)
     name = re.sub(r"\|", "", name)
 

@@ -5,7 +5,7 @@ from time import sleep
 from decouple import config
 from tweepy.errors import TooManyRequests
 
-from src import get_searching_config
+from src import get_searching_config, MIN_TWEET_COUNT
 
 api = tweepy.Client(bearer_token=config('TWITTER_BEARER_TOKEN'))
 
@@ -62,16 +62,16 @@ def extract_ids(res, ids):
     for user in users:
         public_metrics = user.get('public_metrics', [])
 
-        if public_metrics.get('tweet_count', 0) > 500:
+        if public_metrics.get('tweet_count', 0) > MIN_TWEET_COUNT:
             ids.add(user['id'])
 
 
-def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
-    """Uses the Twitter API: GET /2/tweets/search/all endpoint to collect IDs of potentially relevant users based on their tweets
+def search_tweets(num_profiles, query, start_time=None, end_time=None) -> set[str]:
+    """Uses the Twitter API: GET /2/tweets/search/all endpoint to collect IDs of potentially relevant profiles based on their tweets
 
     Parameters
     ----------
-    num_users : int
+    num_profiles : int
         The target number of user IDs to collect
     query : str
         Twitter API compliant query to use to search for tweets
@@ -81,17 +81,17 @@ def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
     Returns
     -------
     set[str]
-        Twitter users' IDs
+        Twitter profiles' IDs
 
     """
-    max_results = min(num_users, 500)
-    max_calls = round(math.ceil(num_users / max_results) * 1.5)
+    max_results = min(num_profiles, 500)
+    max_calls = round(math.ceil(num_profiles / max_results) * 1.5)
 
     ids = set()
     call_count = 0
     next_token = None
 
-    while len(ids) < num_users and call_count < max_calls:
+    while len(ids) < num_profiles and call_count < max_calls:
         try:
             res = api.search_all_tweets(query, expansions="author_id", user_fields=["id", "public_metrics"],
                                         sort_order="recency", start_time=start_time, end_time=end_time,
@@ -115,22 +115,22 @@ def search_tweets(num_users, query, start_time=None, end_time=None) -> set[str]:
     return ids
 
 
-def get_initial_users(configuration) -> list[str]:
+def get_initial_profiles(configuration) -> list[str]:
     """Uses the Twitter API and the configurations present in the searching section of the config file to return a
     set of user IDs from potentially relevant profiles
 
     Returns
     -------
     list[str]
-        Twitter users' IDs
+        Twitter profiles' IDs
     """
-    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = configuration
+    profiles, keywords, hashtags, exclude, countries, languages, start_time, end_time = configuration
 
     query = build_query(keywords, hashtags, exclude, countries, languages)
 
-    ids = search_tweets(users, query, start_time, end_time)
+    ids = search_tweets(profiles, query, start_time, end_time)
 
-    return list(ids)[:users]
+    return list(ids)[:profiles]
 
 
 def extract_info(res, results):
@@ -175,7 +175,7 @@ def test_search_tweets(query, start_time=None, end_time=None) -> list[dict]:
 
 
 def test_query_results(configuration: dict) -> list[dict]:
-    users, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config(configuration)
+    profiles, keywords, hashtags, exclude, countries, languages, start_time, end_time = get_searching_config(configuration)
 
     query = build_query(keywords, hashtags, exclude, countries, languages)
 

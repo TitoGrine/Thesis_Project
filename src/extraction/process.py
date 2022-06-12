@@ -20,7 +20,7 @@ def delete_profile_temp_dir(profile_identifier):
         shutil.rmtree(profile_dir, True)
 
 
-def process_profile_links(profile_info, links_per_user, entities_params):
+def process_profile_links(profile_info, links_per_profile, entities_params):
     username = profile_info.get('username')
     name = process_twitter_name(profile_info.get('name'))
 
@@ -28,7 +28,7 @@ def process_profile_links(profile_info, links_per_user, entities_params):
 
     print(f"\033[92m Profile {username} collected {len(links)} links. \033[0m")
 
-    links_info, remaining_links = crawl_links(links, links_per_user, entities_params, (username, name))
+    links_info, remaining_links = crawl_links(links, links_per_profile, entities_params, (username, name))
 
     profile_info.pop('links')
     profile_info['processed_links'] = links_info

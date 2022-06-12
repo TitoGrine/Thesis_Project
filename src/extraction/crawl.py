@@ -40,28 +40,26 @@ def get_website_content(url, enable_javascript):
 
     try:
         if enable_javascript:
-            head_req = requests.request("HEAD", url, headers={
-                'Accept-Language': 'en-US,en',
-                'User-Agent': FAKE_USER_AGENT
+            response = requests.request("GET", url, headers={
+                'Accept-Language': 'en-US,en'
             }, timeout=SESSION_TIMEOUT, verify=CERTIFICATE_VERIFY)
-            status_code = head_req.status_code
+            status_code = response.status_code
 
-            if url_is_downloadable(head_req.headers):
+            if url_is_downloadable(response.headers):
                 return None, 418
 
-            # Sometimes HEAD request returns 4** error when GET returns 200
             if 400 <= status_code < 500:
-                head_req = requests.request("GET", url, headers={
+                response = requests.request("GET", url, headers={
                     'Accept-Language': 'en-US,en',
                     'User-Agent': FAKE_USER_AGENT
                 }, timeout=SESSION_TIMEOUT, verify=CERTIFICATE_VERIFY)
-                status_code = head_req.status_code
+                status_code = response.status_code
+
+                if url_is_downloadable(response.headers):
+                    return None, 418
 
             if 400 <= status_code < 500:
                 return None, status_code
-
-            if url_is_downloadable(head_req.headers):
-                return None, 418
 
             driver = get_driver()
             driver.get(url)
@@ -272,8 +270,8 @@ def crawl_link(link) -> dict:
 
 
 def crawl_link_worker(link_queue: Queue, links_info: Queue, link_bf: BloomFilter, link_counter: ThreadSafeCounter,
-                      entities_params, profile_names, links_per_user):
-    while link_queue.qsize() > 0 and link_counter.check(links_per_user):
+                      entities_params, profile_names, links_per_profile):
+    while link_queue.qsize() > 0 and link_counter.check(links_per_profile):
         try:
             link = link_queue.get()
         except queue.Empty:
@@ -299,7 +297,7 @@ def crawl_link_worker(link_queue: Queue, links_info: Queue, link_bf: BloomFilter
 
         if link_info.get('is_link_tree', False):
             for external_link in link_info.get('external_links', []):
-                link_queue.put(external_link)
+                links_info.put(crawl_link(external_link))
 
         link_info['entities'] = extract_link_entities(link_info.get('corpus', ""), entities_params)
 
@@ -312,7 +310,7 @@ def crawl_link_worker(link_queue: Queue, links_info: Queue, link_bf: BloomFilter
     return
 
 
-def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[list[dict], list[str]]:
+def crawl_links(links, links_per_profile, entities_params, profile_names) -> tuple[list[dict], list[str]]:
     link_bf = BloomFilter()
     links_info = Queue()
 
@@ -326,7 +324,7 @@ def crawl_links(links, links_per_user, entities_params, profile_names) -> tuple[
     threads = []
 
     for _ in range(8):
-        threads.append(Thread(target=crawl_link_worker, args=(link_queue, links_info, link_bf, link_counter, entities_params, profile_names, links_per_user)))
+        threads.append(Thread(target=crawl_link_worker, args=(link_queue, links_info, link_bf, link_counter, entities_params, profile_names, links_per_profile)))
 
     for thread in threads:
         thread.start()

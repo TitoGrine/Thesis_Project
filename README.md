@@ -8,7 +8,7 @@ structure.
 ```json
 {
   "searching": {
-    "users": "(int) <number of users to try to collect from the tweet search>",
+    "profiles": "(int) <number of profiles to try to collect from the tweet search>",
     "keywords": "(array<string>) [<words to search for in tweets>]",
     "hashtags": "(array<string>) [<hashtags to search for in tweets>]",
     "_exclude_": "(array<string>) [<words that can not appear in tweets>]",
@@ -19,10 +19,10 @@ structure.
   },
   "discovery": {
     "keywords": "(array<string>) [<words closely related to the desired domain>]",
-    "tweets_per_user": "(int) <maximum number of tweets to try to extract from each user (includes tweets, replies, quote tweets and retweets)>"
+    "tweets_per_profile": "(int) <maximum number of tweets to try to extract from each user (includes tweets, replies, quote tweets and retweets)>"
   },
   "extraction": {
-    "links_per_user": "(int) <maximum number of links to crawl for each user>",
+    "links_per_profile": "(int) <maximum number of links to crawl for each user>",
     "entities": {
       "_person_": "(boolean) <extract person entities from selected websites>",
         "_norp_": "(boolean) <extract nationalities, religious or political group entities from selected websites>",

@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class SearchConfig(BaseModel):
-    users: int
+    profiles: int
     keywords: list[str]
     hashtags: list[str]
     exclude: Optional[list[str]] = None
@@ -15,7 +15,7 @@ class SearchConfig(BaseModel):
 
 class DiscoverConfig(BaseModel):
     keywords: list[str]
-    tweets_per_user: int
+    tweets_per_profile: int
 
 
 class EntitiesConfig(BaseModel):
@@ -40,7 +40,7 @@ class EntitiesConfig(BaseModel):
 
 
 class ExtractConfig(BaseModel):
-    links_per_user: int
+    links_per_profile: int
     entities: Optional[EntitiesConfig] = {}
 
 

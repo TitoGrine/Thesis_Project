@@ -116,7 +116,7 @@ def extract_tweets_info(response, links, links_bf, entities, tweets, retweets):
             entities.add(entity)
 
 
-def extract_profile_tweets_info(profile_info, profile_entities, tweets_per_user):
+def extract_profile_tweets_info(profile_info, profile_entities, tweets_per_profile):
     user_id = profile_info['id']
 
     links = []
@@ -130,7 +130,7 @@ def extract_profile_tweets_info(profile_info, profile_entities, tweets_per_user)
     tweet_count = 0
     next_token = None
 
-    while tweet_count < tweets_per_user:
+    while tweet_count < tweets_per_profile:
         try:
             response = api.get_users_tweets(id=user_id, tweet_fields=TWEET_FIELDS, expansions="referenced_tweets.id",
                                             max_results=100, pagination_token=next_token)
@@ -152,7 +152,7 @@ def extract_profile_tweets_info(profile_info, profile_entities, tweets_per_user)
     profile_info['retweets'] = retweets
 
 
-def extract_profile_info(response, tweets_per_user) -> dict or None:
+def extract_profile_info(response, tweets_per_profile) -> dict or None:
     if response.get('id') is None or response.get('username') is None:
         return
 
@@ -165,6 +165,6 @@ def extract_profile_info(response, tweets_per_user) -> dict or None:
         'description': response.get('description')
     }
 
-    extract_profile_tweets_info(profile_info, response.get('entities'), tweets_per_user)
+    extract_profile_tweets_info(profile_info, response.get('entities'), tweets_per_profile)
 
     return profile_info

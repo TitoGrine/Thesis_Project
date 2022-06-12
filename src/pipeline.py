@@ -7,7 +7,7 @@ from pyspark import SparkContext
 from gensim import downloader as downloader
 
 from src import ES_INDEX_CONFIG, get_searching_config, get_discovery_config, get_extraction_config, \
-    get_initial_users, WORD_MODEL, get_words_embedding, chunks, batch_request_profiles, analyze_profile, \
+    get_initial_profiles, WORD_MODEL, get_words_embedding, chunks, batch_request_profiles, analyze_profile, \
     process_profile_links, connect_elasticsearch, save_search_result, ES_INDEX_SEARCH, profile_index_mapping
 
 
@@ -55,11 +55,11 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
     try:
         # Configurations
         searching_config = get_searching_config(config)
-        keywords, tweets_per_user = get_discovery_config(config)
-        links_per_user, entities_params = get_extraction_config(config)
+        keywords, tweets_per_profile = get_discovery_config(config)
+        links_per_profile, entities_params = get_extraction_config(config)
 
         # Searching
-        ids = get_initial_users(searching_config)
+        ids = get_initial_profiles(searching_config)
 
         # Discovery
         word_model = downloader.load(WORD_MODEL)
@@ -74,12 +74,12 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
         profile_responses = rdd.flatMap(batch_request_profiles)
 
         related_profiles = profile_responses.map(
-            lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_user, word_model_bv.value)).filter(
+            lambda pf: analyze_profile(pf, embedded_keywords, tweets_per_profile, word_model_bv.value)).filter(
             lambda profile: profile is not None)
 
         # Extraction
         final_profiles = related_profiles.map(
-            lambda profile: process_profile_links(profile, links_per_user, entities_params))
+            lambda profile: process_profile_links(profile, links_per_profile, entities_params))
 
         # ElasticSearch
         results = final_profiles.map(lambda profile: save_search_result(search_id, profile)).filter(
