@@ -10,7 +10,11 @@ def score_formula(original_length, match_length, num_errors):
     return original_length / (original_length + abs_diff + 2 * num_errors)
 
 
-def calculate_score(search_expression, length, string):
+def calculate_score(search_expression, length, string, explicit_boundaries=False):
+    if explicit_boundaries:
+        search_expression = f"(\W|_|\\b){search_expression}(\W|_|\\b)"
+        length += 2
+
     match = regex.search(search_expression, string)
 
     if match:
@@ -65,14 +69,14 @@ def calculate_expression_score(expression, link_info):
 
     for search_expression, length, weight in search_expressions:
         matches = [
-            calculate_score(search_expression, length, " ".join(link_info.get('name', [])).lower()),
-            calculate_score(search_expression, length, " ".join(link_info.get('title', [])).lower()),
-            calculate_score(search_expression, length, link_info.get('description', "").lower()),
-            calculate_score(search_expression, length, " ".join(link_info.get('keywords', [])).lower()),
+            calculate_score(search_expression, length, " ".join(link_info.get('name', [])).lower(), True),
+            calculate_score(search_expression, length, " ".join(link_info.get('title', [])).lower(), True),
+            calculate_score(search_expression, length, link_info.get('description', "").lower(), True),
+            calculate_score(search_expression, length, " ".join(link_info.get('keywords', [])).lower(), True),
             calculate_score(search_expression, length, " ".join(link_info.get('internal_links', [])).lower()),
             calculate_score(search_expression, length, " ".join(link_info.get('external_links', [])).lower()),
             calculate_score(search_expression, length, " ".join(link_info.get('emails', [])).lower()),
-            calculate_score(search_expression, length, link_info.get('corpus', "").lower()),
+            calculate_score(search_expression, length, link_info.get('corpus', "").lower(), True),
         ]
 
         score += (sum(matches) / 8.0) * weight

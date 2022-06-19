@@ -25,7 +25,7 @@ TWEET_FIELDS = ["text", "author_id", "context_annotations",
                 "entities", "lang", "referenced_tweets"]
 
 # Extraction constants
-WEBSITE_RELATEDNESS_THRESHOLD = 0.07
+WEBSITE_RELATEDNESS_THRESHOLD = 0.06
 MAX_CRAWL_DEPTH = 5
 CLEANER = re.compile(r'[\r\n\t]')
 RE_INT = re.compile(r'\d+')

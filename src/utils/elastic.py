@@ -16,7 +16,7 @@ def save_search_result(search_id, profile_info):
 
     if _es is None:
         print(f"Error connecting to elasticsearch.")
-        return
+        return None
 
     try:
         profile_id = profile_info.get('id')
@@ -26,3 +26,4 @@ def save_search_result(search_id, profile_info):
         return profile_id
     except Exception as e:
         print(f"Error posting to index: {e}")
+        return None

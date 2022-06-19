@@ -79,7 +79,8 @@ def pipeline(spark_context: SparkContext, config: dict, search_id):
 
         # Extraction
         final_profiles = related_profiles.map(
-            lambda profile: process_profile_links(profile, links_per_profile, entities_params))
+            lambda profile: process_profile_links(profile, links_per_profile, entities_params)).filter(
+            lambda profile: profile is not None)
 
         # ElasticSearch
         results = final_profiles.map(lambda profile: save_search_result(search_id, profile)).filter(

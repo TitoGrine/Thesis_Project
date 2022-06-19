@@ -30,24 +30,27 @@ def save_profile(profile_info):
 
 
 def analyze_profile(response, keywords, tweets_per_profile, word_model):
-    profile_info = extract_profile_info(response, tweets_per_profile)
+    try:
+        profile_info = extract_profile_info(response, tweets_per_profile)
 
-    if profile_info is None:
+        if profile_info is None:
+            return None
+
+        description = profile_info.get('description')
+        tweets = profile_info.pop('tweets')
+        retweets = profile_info.pop('retweets')
+
+        score = calculate_profile_score(keywords, word_model, description, tweets, retweets)
+
+        if score > TOPIC_SIMILARITY_THRESHOLD and len(profile_info.get('links', [])) > 0:
+            profile_info['score'] = "{:.3f}".format(score)
+
+            return profile_info
+
         return None
-
-    description = profile_info.get('description')
-    tweets = profile_info.pop('tweets')
-    retweets = profile_info.pop('retweets')
-
-    score = calculate_profile_score(keywords, word_model, description, tweets, retweets)
-
-    if score > TOPIC_SIMILARITY_THRESHOLD and len(profile_info.get('links', [])) > 0:
-        profile_info['score'] = "{:.3f}".format(score)
-
-        return profile_info
-
-    return None
-
+    except:
+        print(f"Error while analyzing profile.")
+        return None
 
 def batch_request_profiles(ids):
     responses = api.get_users(ids=ids, user_fields=USER_FIELDS).data
